@@ -22,10 +22,10 @@ export function VowenaLogo({ size = "default" }: { size?: "sm" | "default" | "lg
   const s = {
     sm: { icon: "w-6 h-6", text: "text-base" },
     default: { icon: "w-7 h-7", text: "text-lg" },
-    lg: { icon: "w-9 h-9", text: "text-xl" },
+    lg: { icon: "w-9 h-9", text: "text-1xl" },
   }[size];
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-1">
       <VowenaSymbol className={`${s.icon} text-accent`} />
       <VowenaWordmark className={`${s.text} font-semibold text-foreground`} />
     </div>
