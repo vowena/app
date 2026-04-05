@@ -105,7 +105,7 @@ export default function Home() {
                 <span className="text-violet-400">from</span>{" "}
                 <span className="text-success">{'"vowena"'}</span>
                 {"\n\n"}
-                <span className="text-muted">// Subscribe to a plan — one signature</span>
+                <span className="text-muted">// Subscribe to a plan - one signature</span>
                 {"\n"}
                 <span className="text-violet-400">const</span>{" "}
                 <span className="text-foreground">xdr</span>{" "}
@@ -143,7 +143,7 @@ export default function Home() {
             },
             {
               title: "Grace periods",
-              desc: "Failed charges enter a grace window — not immediate cancellation.",
+              desc: "Failed charges enter a grace window - not immediate cancellation.",
             },
             {
               title: "Free trials",
