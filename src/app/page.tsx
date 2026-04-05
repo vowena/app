@@ -1,19 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { Button } from "@/components/ui/button";
-
-function VowenaSymbol({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 16C12 16 24 48 36 56C48 48 60 16 60 16" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-      <circle cx="36" cy="56" r="4" fill="currentColor"/>
-      <path d="M36 56C36 56 28 52 22 42" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.4"/>
-      <path d="M36 56C36 56 44 52 50 42" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.4"/>
-    </svg>
-  );
-}
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Home() {
   const { address, isConnected, connect } = useWallet();
@@ -23,18 +14,22 @@ export default function Home() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto w-full">
         <div className="flex items-center gap-2.5">
-          <VowenaSymbol className="w-7 h-7 text-accent" />
-          <span className="text-lg font-semibold tracking-tight text-foreground" style={{ letterSpacing: "-0.03em" }}>
+          <Image src="/logo/vowena.svg" alt="Vowena" width={24} height={24} />
+          <span className="text-base font-semibold text-foreground" style={{ letterSpacing: "-0.03em" }}>
             vowena
           </span>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-5">
           <Link href="https://docs.vowena.xyz" className="text-sm text-muted hover:text-foreground transition-colors">
             Docs
+          </Link>
+          <Link href="https://blog.vowena.xyz" className="text-sm text-muted hover:text-foreground transition-colors">
+            Blog
           </Link>
           <Link href="https://github.com/vowena" className="text-sm text-muted hover:text-foreground transition-colors">
             GitHub
           </Link>
+          <ThemeToggle />
           {isConnected ? (
             <Link href="/merchant">
               <Button size="sm">Dashboard</Button>
@@ -46,176 +41,266 @@ export default function Home() {
       </nav>
 
       {/* Hero */}
-      <main className="flex flex-col items-center px-6 pt-24 pb-16 max-w-6xl mx-auto w-full">
-        <div className="flex flex-col items-center text-center max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-surface text-xs font-medium text-muted mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-success" />
-            Live on Stellar Testnet
-          </div>
+      <main className="flex-1">
+        <section className="px-6 pt-20 pb-24 max-w-6xl mx-auto">
+          <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-surface text-xs font-medium text-muted mb-8">
+              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+              Live on Stellar Testnet
+            </div>
 
-          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-foreground leading-tight" style={{ letterSpacing: "-0.03em" }}>
-            Trustless recurring payments on Stellar
-          </h1>
+            <h1 className="text-5xl sm:text-6xl font-semibold tracking-tight text-foreground leading-[1.1]" style={{ letterSpacing: "-0.035em" }}>
+              Recurring payments,{" "}
+              <span className="text-accent">on-chain</span>
+            </h1>
 
-          <p className="mt-5 text-lg text-secondary leading-relaxed max-w-lg">
-            Create subscription plans. Authorize on-chain billing in USDC.
-            One signature. No intermediaries.
-          </p>
+            <p className="mt-6 text-lg text-secondary leading-relaxed max-w-md">
+              The subscription billing protocol for Stellar. One signature. No intermediaries. Built for USDC.
+            </p>
 
-          <div className="flex items-center gap-3 mt-8">
-            {isConnected ? (
-              <>
-                <Link href="/merchant">
-                  <Button size="lg">Merchant dashboard</Button>
-                </Link>
-                <Link href="/subscriptions">
-                  <Button variant="outline" size="lg">My subscriptions</Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Button size="lg" onClick={connect}>Get started</Button>
-                <Link href="https://docs.vowena.xyz">
-                  <Button variant="outline" size="lg">Read docs</Button>
-                </Link>
-              </>
+            <div className="flex items-center gap-3 mt-10">
+              {isConnected ? (
+                <>
+                  <Link href="/merchant">
+                    <Button size="lg">Open dashboard</Button>
+                  </Link>
+                  <Link href="/subscriptions">
+                    <Button variant="outline" size="lg">My subscriptions</Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Button size="lg" onClick={connect}>Get started</Button>
+                  <Link href="https://docs.vowena.xyz">
+                    <Button variant="outline" size="lg">Documentation</Button>
+                  </Link>
+                </>
+              )}
+            </div>
+
+            {isConnected && (
+              <p className="mt-4 text-xs text-muted font-mono">
+                {address?.slice(0, 8)}...{address?.slice(-8)}
+              </p>
             )}
           </div>
 
-          {isConnected && (
-            <p className="mt-4 text-xs text-muted font-mono">
-              {address?.slice(0, 8)}...{address?.slice(-8)}
-            </p>
-          )}
-        </div>
+          {/* Code preview */}
+          <div className="mt-20 max-w-xl mx-auto">
+            <div className="rounded-xl border border-border bg-elevated shadow-sm overflow-hidden">
+              <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border-subtle bg-surface">
+                <div className="w-2 h-2 rounded-full bg-[#FF4D6A]/40" />
+                <div className="w-2 h-2 rounded-full bg-[#FFBD2E]/40" />
+                <div className="w-2 h-2 rounded-full bg-[#00DC82]/40" />
+                <span className="ml-3 text-[11px] text-muted font-mono">subscribe.ts</span>
+              </div>
+              <pre className="p-5 text-[13px] leading-7 overflow-x-auto font-mono text-secondary">
+                <code>{`import { VowenaClient, toStroops } from "vowena"
 
-        {/* Code preview */}
-        <div className="mt-20 w-full max-w-xl">
-          <div className="rounded-xl border border-border bg-elevated overflow-hidden">
-            <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border-subtle">
-              <div className="w-2.5 h-2.5 rounded-full bg-error/40" />
-              <div className="w-2.5 h-2.5 rounded-full bg-warning/40" />
-              <div className="w-2.5 h-2.5 rounded-full bg-success/40" />
-              <span className="ml-3 text-xs text-muted font-mono">subscribe.ts</span>
+// Subscribe to a plan - one signature
+const xdr = await client.buildSubscribe(
+  wallet.address,
+  1 // plan ID
+)
+
+// Sign and submit
+const signed = await wallet.signTransaction(xdr)
+await client.submitTransaction(signed)`}</code>
+              </pre>
             </div>
-            <pre className="p-5 text-sm leading-relaxed overflow-x-auto font-mono">
-              <code>
-                <span className="text-violet-400">import</span>{" "}
-                <span className="text-foreground">{"{"} VowenaClient, toStroops {"}"}</span>{" "}
-                <span className="text-violet-400">from</span>{" "}
-                <span className="text-success">{'"vowena"'}</span>
-                {"\n\n"}
-                <span className="text-muted">// Subscribe to a plan - one signature</span>
-                {"\n"}
-                <span className="text-violet-400">const</span>{" "}
-                <span className="text-foreground">xdr</span>{" "}
-                <span className="text-muted">=</span>{" "}
-                <span className="text-violet-400">await</span>{" "}
-                <span className="text-foreground">client.</span>
-                <span className="text-info">buildSubscribe</span>
-                <span className="text-foreground">(</span>
-                {"\n"}
-                {"  "}<span className="text-foreground">wallet.address,</span>
-                {"\n"}
-                {"  "}<span className="text-warning">1</span>
-                <span className="text-muted"> // plan ID</span>
-                {"\n"}
-                <span className="text-foreground">)</span>
-              </code>
-            </pre>
           </div>
-        </div>
+        </section>
 
-        {/* Features */}
-        <div className="mt-24 w-full grid grid-cols-1 sm:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border">
-          {[
-            {
-              title: "On-chain billing",
-              desc: "Contract pulls USDC each period via transfer_from. No server dependency.",
-            },
-            {
-              title: "Price protection",
-              desc: "Merchants can never silently raise prices. Migrations require explicit consent.",
-            },
-            {
-              title: "Permissionless",
-              desc: "Anyone can trigger billing. Only the merchant receives funds.",
-            },
-            {
-              title: "Grace periods",
-              desc: "Failed charges enter a grace window - not immediate cancellation.",
-            },
-            {
-              title: "Free trials",
-              desc: "Trial periods advance the counter without transferring tokens.",
-            },
-            {
-              title: "$0.00001 per tx",
-              desc: "Stellar makes micro-billing practical. 5-second finality.",
-            },
-          ].map((feature) => (
-            <div key={feature.title} className="bg-elevated p-6">
-              <h3 className="text-sm font-semibold text-foreground mb-1.5">
-                {feature.title}
-              </h3>
-              <p className="text-xs text-muted leading-relaxed">
-                {feature.desc}
-              </p>
+        {/* How it works */}
+        <section className="px-6 py-24 border-t border-border">
+          <div className="max-w-6xl mx-auto">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-2 text-center">How it works</p>
+            <h2 className="text-2xl font-semibold text-foreground text-center tracking-tight mb-16" style={{ letterSpacing: "-0.02em" }}>
+              Three roles, one protocol
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                {
+                  step: "01",
+                  title: "Merchant creates a plan",
+                  desc: "Define the token, amount, billing period, trial length, and price ceiling. The plan lives on-chain as an immutable billing template.",
+                },
+                {
+                  step: "02",
+                  title: "Subscriber signs once",
+                  desc: "One wallet signature approves both the subscription and the token allowance. No recurring prompts. The contract handles the rest.",
+                },
+                {
+                  step: "03",
+                  title: "Keeper triggers billing",
+                  desc: "Anyone can call charge(). The contract verifies conditions and transfers USDC from subscriber to merchant. Fully permissionless.",
+                },
+              ].map((item) => (
+                <div key={item.step} className="relative p-6 rounded-xl border border-border bg-elevated">
+                  <span className="text-[11px] font-mono text-accent font-bold">{item.step}</span>
+                  <h3 className="text-sm font-semibold text-foreground mt-3 mb-2">{item.title}</h3>
+                  <p className="text-sm text-muted leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        </section>
+
+        {/* Features grid */}
+        <section className="px-6 py-24 bg-surface">
+          <div className="max-w-6xl mx-auto">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-2 text-center">Features</p>
+            <h2 className="text-2xl font-semibold text-foreground text-center tracking-tight mb-16" style={{ letterSpacing: "-0.02em" }}>
+              Everything you need for subscription billing
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[
+                {
+                  title: "Pull billing",
+                  desc: "Contract calls transfer_from() each period. No server dependency. No recurring signatures.",
+                  icon: "↻",
+                },
+                {
+                  title: "Price protection",
+                  desc: "Price ceiling prevents surprise hikes. Migrations require explicit subscriber consent.",
+                  icon: "🛡",
+                },
+                {
+                  title: "Grace periods",
+                  desc: "Failed charges enter a configurable grace window. Paused, not cancelled. Subscribers can recover.",
+                  icon: "⏳",
+                },
+                {
+                  title: "Free trials",
+                  desc: "Trial periods advance the billing counter without transferring tokens. Cancel during trial, never charged.",
+                  icon: "🎁",
+                },
+                {
+                  title: "Permissionless",
+                  desc: "Anyone can call charge(). Only the merchant receives funds. Run your own keeper or use the dashboard.",
+                  icon: "🔓",
+                },
+                {
+                  title: "$0.00001 per tx",
+                  desc: "Stellar makes micro-billing practical. 5-second finality. Native USDC. No gas fee anxiety.",
+                  icon: "⚡",
+                },
+              ].map((feature) => (
+                <div key={feature.title} className="p-5 rounded-xl border border-border bg-elevated hover:border-accent/20 transition-colors">
+                  <span className="text-lg mb-3 block">{feature.icon}</span>
+                  <h3 className="text-sm font-semibold text-foreground mb-1.5">{feature.title}</h3>
+                  <p className="text-xs text-muted leading-relaxed">{feature.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Roles */}
-        <div className="mt-24 w-full">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted mb-8 text-center">
-            Built for everyone in the payment chain
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {[
-              {
-                role: "Merchants",
-                desc: "Create billing plans, manage subscribers, automate recurring charges with the dashboard or SDK.",
-                href: "/merchant",
-              },
-              {
-                role: "Subscribers",
-                desc: "View and manage all subscriptions across every merchant. Cancel anytime, directly on-chain.",
-                href: "/subscriptions",
-              },
-              {
-                role: "Developers",
-                desc: "Install the SDK, integrate subscribe flows, run keeper bots. Everything is open source.",
-                href: "https://docs.vowena.xyz",
-              },
-            ].map((item) => (
-              <Link
-                key={item.role}
-                href={item.href}
-                className="group rounded-xl border border-border bg-elevated p-6 hover:border-accent/30 transition-colors"
-              >
-                <h3 className="text-sm font-semibold text-foreground mb-2 group-hover:text-accent transition-colors">
-                  {item.role}
-                </h3>
-                <p className="text-xs text-muted leading-relaxed">
-                  {item.desc}
-                </p>
-              </Link>
-            ))}
+        <section className="px-6 py-24 border-t border-border">
+          <div className="max-w-6xl mx-auto">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-2 text-center">Built for</p>
+            <h2 className="text-2xl font-semibold text-foreground text-center tracking-tight mb-16" style={{ letterSpacing: "-0.02em" }}>
+              Everyone in the payment chain
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {[
+                {
+                  role: "Merchants",
+                  desc: "Create billing plans, manage subscribers, track revenue, automate charges. Dashboard or SDK - your choice.",
+                  cta: "Merchant dashboard",
+                  href: "/merchant",
+                },
+                {
+                  role: "Subscribers",
+                  desc: "See every subscription in one place. Cancel anytime, directly on-chain. No merchant can lock you in.",
+                  cta: "My subscriptions",
+                  href: "/subscriptions",
+                },
+                {
+                  role: "Developers",
+                  desc: "npm install vowena. TypeScript SDK, event polling, keeper bot. Open source. MIT license.",
+                  cta: "Read the docs",
+                  href: "https://docs.vowena.xyz",
+                },
+              ].map((item) => (
+                <Link
+                  key={item.role}
+                  href={item.href}
+                  className="group flex flex-col justify-between rounded-xl border border-border bg-elevated p-6 hover:border-accent/30 hover:shadow-sm transition-all"
+                >
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground mb-2 group-hover:text-accent transition-colors">
+                      {item.role}
+                    </h3>
+                    <p className="text-sm text-muted leading-relaxed">{item.desc}</p>
+                  </div>
+                  <span className="mt-6 text-xs font-medium text-accent opacity-0 group-hover:opacity-100 transition-opacity">
+                    {item.cta} →
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        </section>
+
+        {/* CTA */}
+        <section className="px-6 py-20 bg-accent">
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-2xl font-semibold text-white tracking-tight mb-3" style={{ letterSpacing: "-0.02em" }}>
+              Start billing on-chain today
+            </h2>
+            <p className="text-sm text-white/70 mb-8">
+              Deploy your first subscription plan in under 5 minutes. Free on testnet.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              {isConnected ? (
+                <Link href="/merchant">
+                  <Button size="lg" className="bg-white text-accent hover:bg-white/90">
+                    Open dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Button size="lg" onClick={connect} className="bg-white text-accent hover:bg-white/90">
+                  Connect wallet
+                </Button>
+              )}
+              <Link href="https://docs.vowena.xyz/quickstart">
+                <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                  Quickstart guide
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border mt-auto">
-        <div className="max-w-6xl mx-auto px-6 py-8 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted">
-            <VowenaSymbol className="w-4 h-4" />
-            <span className="font-mono text-xs">vowena</span>
+      <footer className="border-t border-border bg-surface">
+        <div className="max-w-6xl mx-auto px-6 py-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Image src="/logo/vowena.svg" alt="Vowena" width={18} height={18} />
+                <span className="text-sm font-semibold text-foreground" style={{ letterSpacing: "-0.03em" }}>vowena</span>
+              </div>
+              <p className="text-xs text-muted max-w-xs">
+                The first trustless recurring payment protocol on Stellar.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-x-16 gap-y-2 text-xs">
+              <Link href="https://docs.vowena.xyz" className="text-muted hover:text-foreground transition-colors">Documentation</Link>
+              <Link href="https://github.com/vowena" className="text-muted hover:text-foreground transition-colors">GitHub</Link>
+              <Link href="https://blog.vowena.xyz" className="text-muted hover:text-foreground transition-colors">Blog</Link>
+              <Link href="https://www.npmjs.com/package/vowena" className="text-muted hover:text-foreground transition-colors">npm</Link>
+            </div>
           </div>
-          <div className="flex items-center gap-6 text-xs text-muted">
-            <Link href="https://docs.vowena.xyz" className="hover:text-foreground transition-colors">Docs</Link>
-            <Link href="https://github.com/vowena" className="hover:text-foreground transition-colors">GitHub</Link>
-            <Link href="https://vowena.xyz/blogs" className="hover:text-foreground transition-colors">Blog</Link>
+          <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+            <p className="text-[11px] text-muted">Built on Stellar. Powered by Soroban.</p>
+            <p className="text-[11px] text-muted">&copy; {new Date().getFullYear()} Vowena</p>
           </div>
         </div>
       </footer>

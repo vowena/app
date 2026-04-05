@@ -1,26 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-
-function VowenaSymbol() {
-  return (
-    <svg className="w-6 h-6 text-accent" viewBox="0 0 72 72" fill="none">
-      <path d="M12 16C12 16 24 48 36 56C48 48 60 16 60 16" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-      <circle cx="36" cy="56" r="4" fill="currentColor"/>
-      <path d="M36 56C36 56 28 52 22 42" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.4"/>
-      <path d="M36 56C36 56 44 52 50 42" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.4"/>
-    </svg>
-  );
-}
+import { ThemeToggle } from "@/components/theme-toggle";
+import { useWallet } from "@/components/wallet/wallet-provider";
 
 const navItems = [
-  { href: "/merchant", label: "Overview" },
-  { href: "/merchant/plans", label: "Plans" },
-  { href: "/merchant/subscribers", label: "Subscribers" },
-  { href: "/merchant/billing", label: "Billing" },
-  { href: "/merchant/keeper", label: "Keeper" },
+  { href: "/merchant", label: "Overview", icon: "◻" },
+  { href: "/merchant/plans", label: "Plans", icon: "☰" },
+  { href: "/merchant/subscribers", label: "Subscribers", icon: "◎" },
+  { href: "/merchant/billing", label: "Billing", icon: "◈" },
+  { href: "/merchant/keeper", label: "Keeper", icon: "⟳" },
 ];
 
 export default function MerchantLayout({
@@ -29,23 +21,22 @@ export default function MerchantLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { address } = useWallet();
 
   return (
     <div className="flex min-h-screen">
       <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col border-r border-border bg-elevated">
-        <div className="flex h-14 items-center gap-2.5 border-b border-border px-5">
+        <div className="flex h-14 items-center justify-between border-b border-border px-4">
           <Link href="/" className="flex items-center gap-2">
-            <VowenaSymbol />
+            <Image src="/logo/vowena.svg" alt="Vowena" width={20} height={20} />
             <span className="text-sm font-semibold text-foreground" style={{ letterSpacing: "-0.03em" }}>
               vowena
             </span>
           </Link>
+          <ThemeToggle />
         </div>
 
-        <nav className="flex flex-1 flex-col gap-0.5 p-3">
-          <p className="px-3 pt-2 pb-2 text-[11px] font-semibold uppercase tracking-widest text-muted">
-            Merchant
-          </p>
+        <nav className="flex flex-1 flex-col gap-0.5 p-3 pt-4">
           {navItems.map((item) => {
             const isActive =
               item.href === "/merchant"
@@ -57,12 +48,13 @@ export default function MerchantLayout({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "rounded-lg px-3 py-2 text-sm transition-colors",
+                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",
                   isActive
                     ? "bg-accent-subtle text-accent font-medium"
                     : "text-secondary hover:bg-surface hover:text-foreground",
                 )}
               >
+                <span className="text-xs opacity-60">{item.icon}</span>
                 {item.label}
               </Link>
             );
@@ -70,7 +62,12 @@ export default function MerchantLayout({
         </nav>
 
         <div className="border-t border-border p-4">
-          <p className="text-[11px] text-muted">Stellar Testnet</p>
+          {address && (
+            <p className="text-[11px] text-muted font-mono truncate mb-1">
+              {address.slice(0, 8)}...{address.slice(-4)}
+            </p>
+          )}
+          <p className="text-[10px] text-muted uppercase tracking-wider">Stellar Testnet</p>
         </div>
       </aside>
 
