@@ -19,11 +19,11 @@
   --violet-800: #2D1A8A;
   --violet-900: #1A0F52;
 
-  /* Neutral (violet undertone) */
-  --neutral-950: #08070E;
-  --neutral-900: #0E0D18;
-  --neutral-800: #161423;
-  --neutral-700: #1F1C30;
+  /* Neutral (violet undertone for light, clean for dark) */
+  --neutral-950: #09090F;
+  --neutral-900: #0F0F16;
+  --neutral-800: #14141C;
+  --neutral-700: #23223A;
   --neutral-600: #2D2945;
   --neutral-500: #48436A;
   --neutral-400: #6E6894;

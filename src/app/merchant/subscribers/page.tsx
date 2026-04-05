@@ -65,7 +65,7 @@ export default function SubscribersPage() {
               "rounded-md px-4 py-2 text-sm font-medium transition-colors",
               filter === tab.value
                 ? "bg-elevated text-foreground"
-                : "text-muted hover:text-zinc-200",
+                : "text-muted hover:text-foreground",
             )}
           >
             {tab.label}
