@@ -1,0 +1,30 @@
+name: Feature request
+description: Propose a scoped improvement to the dashboard
+title: "feat: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What user or maintainer problem does this solve?
+      placeholder: Merchants cannot quickly see which subscriptions are in grace period.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the desired UX or implementation shape.
+      placeholder: Add a grace-period filter and badge to the subscriptions table.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: We considered putting this on the billing detail page only, but...
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Mockups, screenshots, or linked discussions

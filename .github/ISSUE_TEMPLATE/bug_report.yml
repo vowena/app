@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible bug in the dashboard
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Vowena Dashboard. Please search existing issues first and do not report security vulnerabilities here.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is broken?
+      placeholder: The subscription list stays empty after connecting Freighter.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Tell us how to trigger the problem.
+      placeholder: |
+        1. Open the dashboard
+        2. Connect wallet
+        3. Navigate to subscriptions
+        4. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: The connected account's subscriptions should load.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, OS, wallet extension version, network, screenshots, logs
+      placeholder: Chrome 136 on macOS, Freighter 6.x, testnet
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I searched existing issues first.
+          required: true
+        - label: This is not a security vulnerability disclosure.
+          required: true
