@@ -8,15 +8,9 @@ import {
   useState,
   useEffect,
 } from "react";
-import {
-  StellarWalletsKit,
-  WalletNetwork,
-  FREIGHTER_ID,
-  ALBEDO_ID,
-  LOBSTR_ID,
-  RABET_ID,
-  XBULL_ID,
-} from "@creit.tech/stellar-wallets-kit";
+import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit/sdk";
+import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
+import { Networks } from "@creit.tech/stellar-wallets-kit";
 
 interface WalletContextValue {
   address: string | null;
@@ -24,90 +18,70 @@ interface WalletContextValue {
   connect: () => Promise<void>;
   disconnect: () => void;
   signTransaction: (xdr: string, networkPassphrase?: string) => Promise<string>;
-  kit: StellarWalletsKit | null;
 }
 
 export const WalletContext = createContext<WalletContextValue | null>(null);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
-  const [kit, setKit] = useState<StellarWalletsKit | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const isConnected = address !== null;
 
-  // Initialize the Stellar Wallets Kit
+  // Initialize the Stellar Wallets Kit once on mount
   useEffect(() => {
-    const initKit = new StellarWalletsKit({
-      network: WalletNetwork.TESTNET,
-      selectedWalletId: undefined,
-      wallets: [FREIGHTER_ID, ALBEDO_ID, LOBSTR_ID, RABET_ID, XBULL_ID],
-    });
-    setKit(initKit);
+    try {
+      StellarWalletsKit.init({
+        modules: defaultModules(),
+      });
+      StellarWalletsKit.setNetwork(Networks.TESTNET);
+      setIsInitialized(true);
+    } catch (error) {
+      console.error("Failed to initialize StellarWalletsKit:", error);
+    }
   }, []);
 
   const connect = useCallback(async () => {
-    if (!kit) {
+    if (!isInitialized) {
       throw new Error("Wallet kit not initialized");
     }
 
     try {
-      // Open the wallet selection modal
-      await kit.openModal((selectedWalletId) => {
-        // This callback is called when a wallet is selected
-      });
-
-      // Get the selected wallet and request access
-      const selectedWalletId = kit.getWalletId();
-      if (!selectedWalletId) {
-        throw new Error("No wallet selected");
-      }
-
-      const selectedWallet = kit.getWallet();
-      if (!selectedWallet) {
-        throw new Error("Failed to get selected wallet");
-      }
-
-      // Get the public key/address
-      const publicKey = await selectedWallet.getPublicKey();
-      if (!publicKey) {
-        throw new Error("Failed to get wallet address");
-      }
-
-      setAddress(publicKey);
+      const result = await StellarWalletsKit.authModal();
+      setAddress(result.address);
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message.includes("cancelled") === false
-      ) {
-        throw error;
-      }
-      // User cancelled the modal, silently fail
+      console.error("Failed to connect wallet:", error);
+      // User likely cancelled the modal
+      throw error;
     }
-  }, [kit]);
+  }, [isInitialized]);
 
-  const disconnect = useCallback(() => {
-    setAddress(null);
-    if (kit) {
-      kit.disconnect();
+  const disconnect = useCallback(async () => {
+    try {
+      await StellarWalletsKit.disconnect();
+      setAddress(null);
+    } catch (error) {
+      console.error("Failed to disconnect wallet:", error);
+      setAddress(null);
     }
-  }, [kit]);
+  }, []);
 
   const signTransaction = useCallback(
     async (xdr: string, networkPassphrase?: string) => {
-      if (!isConnected || !kit) {
+      if (!isConnected) {
         throw new Error("Wallet not connected");
       }
 
-      const wallet = kit.getWallet();
-      if (!wallet) {
-        throw new Error("No wallet connected");
+      if (!isInitialized) {
+        throw new Error("Wallet kit not initialized");
       }
 
       try {
-        const signedXdr = await wallet.signTransaction(xdr, {
+        const result = await StellarWalletsKit.signTransaction(xdr, {
           networkPassphrase: networkPassphrase ?? "Test SDF Network ; September 2015",
+          address,
         });
-        return signedXdr;
+        return result.signedTxXdr;
       } catch (error) {
         throw new Error(
           `Transaction signing failed: ${
@@ -116,7 +90,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         );
       }
     },
-    [isConnected, kit]
+    [isConnected, isInitialized, address]
   );
 
   const value = useMemo<WalletContextValue>(
@@ -126,9 +100,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       connect,
       disconnect,
       signTransaction,
-      kit,
     }),
-    [address, isConnected, connect, disconnect, signTransaction, kit]
+    [address, isConnected, connect, disconnect, signTransaction]
   );
 
   return (
