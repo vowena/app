@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Subscription } from "@/hooks/useSubscriptions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import {
+  CloseIcon,
+  CopyIcon,
+  CheckIcon,
+  ExternalLinkIcon,
+  CalendarIcon,
+} from "@/components/ui/icons";
 
 interface SubscriptionModalProps {
   subscription: Subscription | null;
@@ -24,14 +30,31 @@ export function SubscriptionModal({
   );
   const [isLoading, setIsLoading] = useState(false);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [isOpen]);
+
+  // Close on escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !subscription) return null;
 
   const now = Math.floor(Date.now() / 1000);
   const nextBillingIn = subscription.nextBillingTime - now;
-  const nextBillingCountdown =
-    nextBillingIn > 0
-      ? `${Math.floor(nextBillingIn / 3600)}h ${Math.floor((nextBillingIn % 3600) / 60)}m`
-      : "Due now";
+  const nextBillingCountdown = formatDuration(Math.abs(nextBillingIn));
 
   const handleCancel = async () => {
     if (!onCancel) return;
@@ -46,44 +69,72 @@ export function SubscriptionModal({
     }
   };
 
+  const amount = subscription.plan?.amount
+    ? (Number(subscription.plan.amount) / 1e7).toFixed(2)
+    : "0.00";
+
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+        className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 animate-in fade-in duration-200"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+        <div
+          className="w-full max-w-2xl max-h-[88vh] flex flex-col rounded-2xl border border-border bg-elevated shadow-2xl pointer-events-auto animate-in fade-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header */}
-          <div className="border-b border-border px-6 py-6 flex items-start justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold text-foreground mb-1">
-                {subscription.plan?.id ? `Plan #${subscription.plan.id}` : "Subscription"}
-              </h2>
-              <p className="text-secondary text-sm">
-                Subscriber: {subscription.subscriber.slice(0, 12)}...
-              </p>
+          <div className="px-6 py-5 flex items-start justify-between border-b border-border">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-sm shrink-0">
+                P{subscription.planId}
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted mb-1">
+                  Plan #{subscription.planId}
+                </p>
+                <h2 className="text-lg font-semibold text-foreground tracking-tight">
+                  Subscription #{subscription.id}
+                </h2>
+              </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-muted hover:text-foreground transition-colors p-2"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={
+                  subscription.status === "Active"
+                    ? "active"
+                    : subscription.status === "Paused"
+                      ? "paused"
+                      : subscription.status === "Cancelled"
+                        ? "cancelled"
+                        : "expired"
+                }
+              >
+                {subscription.status}
+              </Badge>
+              <button
+                onClick={onClose}
+                className="text-muted hover:text-foreground hover:bg-surface rounded-md p-2 transition-colors"
+                aria-label="Close"
+              >
+                <CloseIcon size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Tabs */}
-          <div className="border-b border-border px-6 flex gap-8">
+          <div className="px-6 flex gap-6 border-b border-border">
             {(["overview", "history", "details"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`py-4 px-1 text-sm font-medium border-b-2 transition-colors ${
+                className={`py-3 px-0 text-sm font-medium border-b-2 transition-colors -mb-px ${
                   activeTab === tab
-                    ? "text-accent border-accent"
+                    ? "text-foreground border-accent"
                     : "text-muted border-transparent hover:text-secondary"
                 }`}
               >
@@ -95,100 +146,108 @@ export function SubscriptionModal({
           {/* Content */}
           <div className="flex-1 overflow-y-auto px-6 py-6">
             {activeTab === "overview" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-muted text-sm mb-2">Status</p>
-                    <Badge
-                      variant={
-                        subscription.status === "Active"
-                          ? "active"
-                          : subscription.status === "Paused"
-                            ? "paused"
-                            : subscription.status === "Cancelled"
-                              ? "cancelled"
-                              : "expired"
-                      }
-                    >
-                      {subscription.status}
-                    </Badge>
+              <div className="space-y-6">
+                {/* Hero amount */}
+                <div className="rounded-xl bg-surface p-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted mb-2">
+                    Amount per period
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-semibold text-foreground tracking-tight tabular-nums">
+                      {amount}
+                    </span>
+                    <span className="text-sm text-muted font-mono">USDC</span>
+                    <span className="text-sm text-muted">
+                      / {subscription.plan?.period || 0}s
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-muted text-sm mb-2">Amount</p>
-                    <p className="text-foreground font-mono text-sm">
-                      {subscription.plan?.amount
-                        ? (Number(subscription.plan.amount) / 1e7).toFixed(2)
-                        : "0"}{" "}
-                      USDC / {subscription.plan?.period}s
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted text-sm mb-2">Periods Billed</p>
-                    <p className="text-foreground font-semibold">
-                      {subscription.periodsBilled}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted text-sm mb-2">Next Billing</p>
-                    <p className="text-foreground text-sm">
-                      {nextBillingCountdown}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted text-sm mb-2">Created</p>
-                    <p className="text-foreground text-sm">
-                      {new Date(subscription.createdAt * 1000).toLocaleDateString()}
-                    </p>
-                  </div>
+                </div>
+
+                {/* Stats grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <Stat
+                    label="Periods billed"
+                    value={subscription.periodsBilled.toString()}
+                  />
+                  <Stat
+                    label="Next billing"
+                    value={
+                      nextBillingIn > 0
+                        ? nextBillingCountdown
+                        : "Due now"
+                    }
+                  />
+                  <Stat
+                    label="Created"
+                    value={new Date(
+                      subscription.createdAt * 1000
+                    ).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  />
+                  <Stat
+                    label="Trial periods"
+                    value={subscription.plan?.trialPeriods?.toString() || "0"}
+                  />
                   {subscription.cancelledAt > 0 && (
-                    <div>
-                      <p className="text-muted text-sm mb-2">Cancelled</p>
-                      <p className="text-foreground text-sm">
-                        {new Date(subscription.cancelledAt * 1000).toLocaleDateString()}
-                      </p>
-                    </div>
+                    <Stat
+                      label="Cancelled"
+                      value={new Date(
+                        subscription.cancelledAt * 1000
+                      ).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    />
                   )}
                 </div>
               </div>
             )}
 
             {activeTab === "history" && (
-              <div className="space-y-3">
-                <p className="text-muted text-sm">
-                  Subscription events coming soon. Real-time event tracking will be
-                  available in the next update.
+              <div className="text-center py-12">
+                <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-surface flex items-center justify-center">
+                  <CalendarIcon size={20} className="text-muted" />
+                </div>
+                <p className="text-foreground font-medium mb-1">
+                  Event history
+                </p>
+                <p className="text-secondary text-sm max-w-xs mx-auto">
+                  Real-time event tracking from on-chain data is coming soon.
                 </p>
               </div>
             )}
 
             {activeTab === "details" && (
-              <div className="space-y-3 font-mono text-xs">
-                <div>
-                  <p className="text-muted mb-1">Subscription ID</p>
-                  <p className="text-foreground break-all">{subscription.id}</p>
-                </div>
-                <div>
-                  <p className="text-muted mb-1">Plan ID</p>
-                  <p className="text-foreground">{subscription.planId}</p>
-                </div>
-                <div>
-                  <p className="text-muted mb-1">Subscriber Address</p>
-                  <p className="text-foreground break-all">
-                    {subscription.subscriber}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted mb-1">Contract Address</p>
-                  <p className="text-foreground break-all">
-                    CAHGU3IPILE6P7PH324ZTDTYJNQAOGPYZAYLIBJQWPJBVBK4MVIMZQAR
-                  </p>
-                </div>
+              <div className="space-y-1">
+                <DetailRow
+                  label="Subscription ID"
+                  value={subscription.id.toString()}
+                />
+                <DetailRow
+                  label="Plan ID"
+                  value={subscription.planId.toString()}
+                />
+                <DetailRow
+                  label="Subscriber"
+                  value={subscription.subscriber}
+                  copyable
+                />
+                <DetailRow
+                  label="Contract"
+                  value="CAHGU3IPILE6P7PH324ZTDTYJNQAOGPYZAYLIBJQWPJBVBK4MVIMZQAR"
+                  copyable
+                  external={`https://stellar.expert/explorer/testnet/contract/CAHGU3IPILE6P7PH324ZTDTYJNQAOGPYZAYLIBJQWPJBVBK4MVIMZQAR`}
+                />
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="border-t border-border px-6 py-6 flex gap-3 justify-end">
+          <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3">
             <Button variant="ghost" onClick={onClose}>
               Close
             </Button>
@@ -198,12 +257,86 @@ export function SubscriptionModal({
                 onClick={handleCancel}
                 disabled={isLoading}
               >
-                {isLoading ? "Cancelling..." : "Cancel Subscription"}
+                {isLoading ? "Cancelling…" : "Cancel subscription"}
               </Button>
             )}
           </div>
-        </Card>
+        </div>
       </div>
     </>
   );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted mb-1.5">
+        {label}
+      </p>
+      <p className="text-sm text-foreground font-medium">{value}</p>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  copyable,
+  external,
+}: {
+  label: string;
+  value: string;
+  copyable?: boolean;
+  external?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-border-subtle last:border-b-0">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted shrink-0 mr-4">
+        {label}
+      </p>
+      <div className="flex items-center gap-2 min-w-0">
+        <p className="text-xs font-mono text-foreground truncate">{value}</p>
+        {copyable && (
+          <button
+            onClick={handleCopy}
+            className="text-muted hover:text-foreground transition-colors p-1 rounded shrink-0"
+            aria-label="Copy"
+          >
+            {copied ? (
+              <CheckIcon size={12} className="text-success" />
+            ) : (
+              <CopyIcon size={12} />
+            )}
+          </button>
+        )}
+        {external && (
+          <a
+            href={external}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted hover:text-foreground transition-colors p-1 rounded shrink-0"
+            aria-label="Open in explorer"
+          >
+            <ExternalLinkIcon size={12} />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400)
+    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  return `${Math.floor(seconds / 86400)}d`;
 }

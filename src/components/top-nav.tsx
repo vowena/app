@@ -1,0 +1,149 @@
+"use client";
+
+import Link from "next/link";
+import { useState, useRef, useEffect } from "react";
+import { useWallet } from "@/components/wallet/wallet-provider";
+import { VowenaLogo, VowenaSymbol } from "@/components/vowena-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  WalletIcon,
+  LogoutIcon,
+  CopyIcon,
+  CheckIcon,
+  ExternalLinkIcon,
+} from "@/components/ui/icons";
+
+interface TopNavProps {
+  active?: "subscriptions" | "workspaces";
+}
+
+export function TopNav({ active }: TopNavProps) {
+  const { address, disconnect } = useWallet();
+  const [walletMenuOpen, setWalletMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setWalletMenuOpen(false);
+      }
+    };
+    if (walletMenuOpen) {
+      document.addEventListener("mousedown", handleClick);
+      return () => document.removeEventListener("mousedown", handleClick);
+    }
+  }, [walletMenuOpen]);
+
+  const handleCopy = async () => {
+    if (!address) return;
+    await navigator.clipboard.writeText(address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
+      <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+        {/* Left: Logo */}
+        <div className="flex items-center gap-8">
+          <Link href="/subscriptions" className="flex items-center">
+            <VowenaLogo size="sm" />
+          </Link>
+
+          {/* Nav tabs */}
+          <nav className="hidden sm:flex items-center gap-1">
+            <Link
+              href="/subscriptions"
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                active === "subscriptions"
+                  ? "text-foreground bg-surface"
+                  : "text-muted hover:text-foreground hover:bg-surface/50"
+              }`}
+            >
+              Subscriptions
+            </Link>
+            <Link
+              href="/workspaces"
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                active === "workspaces"
+                  ? "text-foreground bg-surface"
+                  : "text-muted hover:text-foreground hover:bg-surface/50"
+              }`}
+            >
+              Workspaces
+            </Link>
+          </nav>
+        </div>
+
+        {/* Right: Theme toggle + wallet */}
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+
+          {address && (
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setWalletMenuOpen(!walletMenuOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono text-secondary hover:text-foreground hover:bg-surface transition-all border border-border"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                {address.slice(0, 4)}…{address.slice(-4)}
+              </button>
+
+              {walletMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-border bg-elevated shadow-2xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-2">
+                      Connected wallet
+                    </p>
+                    <p className="text-xs font-mono text-foreground break-all">
+                      {address}
+                    </p>
+                  </div>
+                  <div className="p-1">
+                    <button
+                      onClick={handleCopy}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-secondary hover:text-foreground hover:bg-surface transition-colors"
+                    >
+                      {copied ? (
+                        <>
+                          <CheckIcon size={14} className="text-success" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <CopyIcon size={14} />
+                          Copy address
+                        </>
+                      )}
+                    </button>
+                    <a
+                      href={`https://stellar.expert/explorer/testnet/account/${address}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-secondary hover:text-foreground hover:bg-surface transition-colors"
+                    >
+                      <ExternalLinkIcon size={14} />
+                      View on Explorer
+                    </a>
+                    <button
+                      onClick={() => {
+                        disconnect();
+                        setWalletMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-error hover:bg-error/5 transition-colors"
+                    >
+                      <LogoutIcon size={14} />
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}

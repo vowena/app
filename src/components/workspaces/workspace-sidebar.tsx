@@ -3,13 +3,30 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { WorkspaceConfig } from "@/hooks/useWorkspaces";
-import { Button } from "@/components/ui/button";
+import {
+  PlanIcon,
+  SubscribersIcon,
+  BillingIcon,
+  KeeperIcon,
+  IntegrateIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ExternalLinkIcon,
+} from "@/components/ui/icons";
 
 interface WorkspaceSidebarProps {
   workspace: WorkspaceConfig;
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
+
+const TABS = [
+  { id: "plans", label: "Plans", Icon: PlanIcon },
+  { id: "subscribers", label: "Subscribers", Icon: SubscribersIcon },
+  { id: "billing", label: "Billing", Icon: BillingIcon },
+  { id: "keeper", label: "Keeper", Icon: KeeperIcon },
+  { id: "integrate", label: "Integrate", Icon: IntegrateIcon },
+];
 
 export function WorkspaceSidebar({
   workspace,
@@ -18,7 +35,6 @@ export function WorkspaceSidebar({
 }: WorkspaceSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Load collapsed state from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem(
@@ -41,68 +57,80 @@ export function WorkspaceSidebar({
     } catch {}
   };
 
-  const tabs = [
-    { id: "plans", label: "Plans", icon: "📋" },
-    { id: "subscribers", label: "Subscribers", icon: "👥" },
-    { id: "billing", label: "Billing", icon: "💰" },
-    { id: "keeper", label: "Keeper", icon: "⚙️" },
-    { id: "integrate", label: "Integrate", icon: "🔗" },
-  ];
-
   return (
     <aside
       className={`${
-        isCollapsed ? "w-14" : "w-56"
-      } bg-surface border-r border-border flex flex-col transition-all duration-200`}
+        isCollapsed ? "w-16" : "w-60"
+      } shrink-0 border-r border-border bg-elevated/40 flex flex-col transition-[width] duration-200`}
     >
-      {/* Header */}
-      <div className="border-b border-border p-4 flex items-center justify-between">
-        {!isCollapsed && (
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm text-foreground truncate">
-              {workspace.name}
-            </h3>
-            <p className="text-xs text-muted truncate font-mono">
-              {workspace.merchantAddress.slice(0, 8)}...
-            </p>
+      {/* Workspace identity */}
+      <div className="px-4 py-5 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 shrink-0 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-sm">
+            {workspace.name.slice(0, 2).toUpperCase()}
           </div>
-        )}
-        <button
-          onClick={handleToggle}
-          className="text-muted hover:text-foreground transition-colors p-1"
-          title={isCollapsed ? "Expand" : "Collapse"}
-        >
-          {isCollapsed ? "→" : "←"}
-        </button>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-foreground truncate tracking-tight">
+                {workspace.name}
+              </p>
+              <p className="text-[10px] text-muted truncate font-mono mt-0.5">
+                {workspace.merchantAddress.slice(0, 6)}…
+                {workspace.merchantAddress.slice(-4)}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${
-              activeTab === tab.id
-                ? "bg-accent text-white font-medium"
-                : "text-secondary hover:bg-elevated hover:text-foreground"
-            }`}
-          >
-            <span className="text-base">{tab.icon}</span>
-            {!isCollapsed && <span>{tab.label}</span>}
-          </button>
-        ))}
+      <nav className="flex-1 p-3 space-y-0.5">
+        {TABS.map(({ id, label, Icon }) => {
+          const isActive = activeTab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => onTabChange(id)}
+              title={isCollapsed ? label : undefined}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                isActive
+                  ? "bg-accent-subtle text-accent"
+                  : "text-secondary hover:text-foreground hover:bg-surface"
+              }`}
+            >
+              <Icon size={16} className="shrink-0" />
+              {!isCollapsed && <span>{label}</span>}
+            </button>
+          );
+        })}
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border p-4">
+      <div className="border-t border-border p-3 space-y-1">
         <Link
-          href={`https://stellar.expert/explorer/testnet/contract/${workspace.merchantAddress}`}
+          href={`https://stellar.expert/explorer/testnet/account/${workspace.merchantAddress}`}
           target="_blank"
-          className="text-xs text-muted hover:text-accent transition-colors block text-center"
+          rel="noopener noreferrer"
+          title={isCollapsed ? "View on Explorer" : undefined}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-muted hover:text-foreground hover:bg-surface transition-colors"
         >
-          {isCollapsed ? "🔍" : "View on Explorer"}
+          <ExternalLinkIcon size={14} className="shrink-0" />
+          {!isCollapsed && <span>Explorer</span>}
         </Link>
+        <button
+          onClick={handleToggle}
+          title={isCollapsed ? "Expand" : "Collapse"}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-muted hover:text-foreground hover:bg-surface transition-colors"
+        >
+          {isCollapsed ? (
+            <ChevronRightIcon size={14} className="shrink-0" />
+          ) : (
+            <>
+              <ChevronLeftIcon size={14} className="shrink-0" />
+              <span>Collapse</span>
+            </>
+          )}
+        </button>
       </div>
     </aside>
   );

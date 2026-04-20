@@ -1,163 +1,194 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
-import { VowenaLogo } from "@/components/vowena-logo";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-modal";
+import { TopNav } from "@/components/top-nav";
+import { Button } from "@/components/ui/button";
+import {
+  PlusIcon,
+  ArrowRightIcon,
+  CheckIcon,
+  SparkleIcon,
+} from "@/components/ui/icons";
 
 export default function WorkspacesPage() {
-  const { address, disconnect } = useWallet();
+  const { address } = useWallet();
   const router = useRouter();
   const { workspaces, createWorkspace } = useWorkspaces();
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Placeholder Pro gate
-  const isPro = false;
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isPro, setIsPro] = useState(false);
 
   if (!isPro) {
     return (
       <>
-        {/* Top bar */}
-        <div className="sticky top-0 z-40 border-b border-border bg-elevated/80 backdrop-blur-xl">
-          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-            <VowenaLogo size="sm" />
-            <div className="flex items-center gap-4">
-              <ThemeToggle />
-              {address && (
-                <>
-                  <div className="text-xs font-mono text-muted">
-                    {address.slice(0, 8)}...{address.slice(-8)}
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={disconnect}>
-                    Disconnect
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        <TopNav active="workspaces" />
 
-        {/* Pro gate overlay */}
-        <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12">
-          <div className="w-full max-w-2xl">
-            {/* Header section with accent line */}
-            <div className="text-center mb-12">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent mb-4">
-                UNLOCK MERCHANT FEATURES
-              </p>
-              <h1 className="text-4xl sm:text-5xl font-semibold text-foreground mb-4 leading-tight">
-                Ready to accept{" "}
+        {/* Premium upgrade hero */}
+        <section className="relative overflow-hidden">
+          {/* Background grid pattern */}
+          <div
+            className="absolute inset-0 -z-10"
+            style={{
+              backgroundImage: `
+                linear-gradient(var(--border-default) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-default) 1px, transparent 1px)
+              `,
+              backgroundSize: "64px 64px",
+              opacity: 0.04,
+            }}
+          />
+          {/* Top hairline accent */}
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
+          {/* Soft radial glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -z-10">
+            <div className="w-[600px] h-[300px] rounded-full bg-accent/5 blur-3xl" />
+          </div>
+
+          <div className="max-w-4xl mx-auto px-6 pt-24 pb-32">
+            <div className="text-center">
+              {/* Eyebrow */}
+              <div className="inline-flex items-center gap-2 mb-8">
+                <span className="h-px w-8 bg-accent/40" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+                  VOWENA PRO
+                </span>
+                <span className="h-px w-8 bg-accent/40" />
+              </div>
+
+              {/* Heading */}
+              <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-semibold text-foreground mb-6 leading-[1.05] tracking-tight">
+                Build with{" "}
                 <span className="serif-italic text-accent text-[1.08em]">
-                  payments?
+                  Vowena.
                 </span>
               </h1>
-              <p className="text-lg text-secondary max-w-xl mx-auto">
-                Start your merchant journey with Vowena Pro. Create unlimited
-                workspaces, set custom billing, and grow with your customers.
+
+              <p className="text-base sm:text-lg text-secondary leading-relaxed max-w-xl mx-auto mb-10">
+                Workspaces give you everything you need to accept recurring
+                payments. Create plans, manage subscribers, and integrate in
+                minutes.
               </p>
+
+              {/* Beta callout */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent-subtle border border-accent/20 mb-10">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
+                </span>
+                <span className="text-xs font-medium text-accent">
+                  Free during open beta
+                </span>
+              </div>
+
+              {/* CTA */}
+              <div className="flex items-center justify-center gap-3 mb-16">
+                <Button
+                  size="lg"
+                  className="h-11 px-6 text-sm gap-2"
+                  onClick={() => {
+                    setIsPro(true);
+                  }}
+                >
+                  Activate Pro
+                  <ArrowRightIcon size={14} />
+                </Button>
+              </div>
             </div>
 
             {/* Feature grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
               {[
-                { icon: "📋", label: "Unlimited Workspaces" },
-                { icon: "💰", label: "Custom Plans" },
-                { icon: "📊", label: "Analytics" },
+                {
+                  title: "Unlimited workspaces",
+                  description:
+                    "Create separate billing setups for each product or project.",
+                },
+                {
+                  title: "Real-time analytics",
+                  description:
+                    "Track revenue, churn, and subscriber growth on-chain.",
+                },
+                {
+                  title: "SDK integration",
+                  description:
+                    "Drop into your app in minutes with our typed SDK.",
+                },
               ].map((feature) => (
-                <Card key={feature.label} className="p-6 text-center">
-                  <div className="text-3xl mb-3">{feature.icon}</div>
-                  <p className="font-medium text-foreground text-sm">
-                    {feature.label}
+                <div
+                  key={feature.title}
+                  className="rounded-xl border border-border bg-elevated p-6"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-accent-subtle flex items-center justify-center mb-4">
+                    <CheckIcon size={14} className="text-accent" />
+                  </div>
+                  <h3 className="font-semibold text-foreground mb-2 text-sm">
+                    {feature.title}
+                  </h3>
+                  <p className="text-secondary text-xs leading-relaxed">
+                    {feature.description}
                   </p>
-                </Card>
+                </div>
               ))}
             </div>
-
-            {/* CTA */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button size="lg" className="sm:px-8">
-                Upgrade to Pro
-              </Button>
-              <Button variant="outline" size="lg" className="sm:px-8">
-                Learn more
-              </Button>
-            </div>
-
-            <p className="text-center text-xs text-muted mt-6">
-              Beta access is free. Upgrade now to get started immediately.
-            </p>
           </div>
-        </div>
+        </section>
       </>
     );
   }
 
-  // Pro view
+  // Pro view - workspaces list
   return (
     <>
-      {/* Top bar */}
-      <div className="sticky top-0 z-40 border-b border-border bg-elevated/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <VowenaLogo size="sm" />
-            <nav className="hidden sm:flex items-center gap-6">
-              <a href="/subscriptions" className="text-sm text-secondary hover:text-foreground transition-colors">
-                My Subscriptions
-              </a>
-              <a href="/workspaces" className="text-sm font-medium text-foreground">
-                Workspaces
-              </a>
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-            {address && (
-              <>
-                <div className="text-xs font-mono text-muted hidden sm:block">
-                  {address.slice(0, 8)}...{address.slice(-8)}
-                </div>
-                <Button variant="ghost" size="sm" onClick={disconnect}>
-                  Disconnect
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      <TopNav active="workspaces" />
 
-      {/* Main content */}
       <div className="max-w-5xl mx-auto px-6 py-12">
         {/* Header */}
-        <div className="mb-12 flex items-start justify-between">
+        <div className="mb-10 flex items-end justify-between gap-6">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent mb-3">
               WORKSPACES
             </p>
-            <h1 className="text-4xl font-semibold text-foreground mb-4">
-              Your projects
+            <h1 className="text-3xl sm:text-4xl font-semibold text-foreground mb-3 tracking-tight">
+              Your{" "}
+              <span className="serif-italic text-accent text-[1.05em]">
+                projects.
+              </span>
             </h1>
-            <p className="text-secondary text-lg">
+            <p className="text-secondary text-sm">
               {workspaces.length} workspace{workspaces.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <Button onClick={() => setShowCreateModal(true)}>
-            New Workspace
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="gap-2 shrink-0"
+          >
+            <PlusIcon size={14} />
+            New workspace
           </Button>
         </div>
 
         {/* Workspaces grid */}
         {workspaces.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted text-lg mb-4">No workspaces yet</p>
-            <p className="text-secondary text-sm mb-6">
-              Create your first workspace to start accepting payments
+          <div className="rounded-2xl border border-border border-dashed bg-surface/50 p-16 text-center">
+            <div className="w-12 h-12 mx-auto mb-6 rounded-full bg-accent-subtle flex items-center justify-center">
+              <SparkleIcon size={20} className="text-accent" />
+            </div>
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              No workspaces yet
+            </h3>
+            <p className="text-secondary text-sm mb-8 max-w-sm mx-auto">
+              Create your first workspace to start accepting recurring payments
+              for your product.
             </p>
-            <Button onClick={() => setShowCreateModal(true)}>
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              className="gap-2"
+            >
+              <PlusIcon size={14} />
               Create workspace
             </Button>
           </div>
@@ -167,19 +198,28 @@ export default function WorkspacesPage() {
               <button
                 key={workspace.id}
                 onClick={() => router.push(`/workspaces/${workspace.id}`)}
-                className="text-left rounded-xl border border-border bg-elevated hover:bg-surface hover:border-accent/50 transition-all duration-200 p-6 group"
+                className="text-left rounded-xl border border-border bg-elevated hover:border-accent/40 transition-all duration-200 p-6 group"
               >
-                <h3 className="text-lg font-semibold text-foreground group-hover:text-accent transition-colors mb-2">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-sm">
+                    {workspace.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <ArrowRightIcon
+                    size={16}
+                    className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all"
+                  />
+                </div>
+                <h3 className="text-base font-semibold text-foreground group-hover:text-accent transition-colors mb-2">
                   {workspace.name}
                 </h3>
                 {workspace.description && (
-                  <p className="text-sm text-secondary mb-4">
+                  <p className="text-sm text-secondary mb-4 line-clamp-2">
                     {workspace.description}
                   </p>
                 )}
                 <p className="text-xs font-mono text-muted">
-                  {workspace.merchantAddress.slice(0, 12)}...
-                  {workspace.merchantAddress.slice(-12)}
+                  {workspace.merchantAddress.slice(0, 6)}…
+                  {workspace.merchantAddress.slice(-6)}
                 </p>
               </button>
             ))}
@@ -187,15 +227,15 @@ export default function WorkspacesPage() {
         )}
       </div>
 
-      {/* Create workspace modal */}
       <CreateWorkspaceModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreateWorkspace={(name, merchantAddress, description) => {
-          createWorkspace(name, merchantAddress, description);
+          const ws = createWorkspace(name, merchantAddress, description);
           setShowCreateModal(false);
+          router.push(`/workspaces/${ws.id}`);
         }}
-        defaultAddress={address}
+        defaultAddress={address || ""}
       />
     </>
   );

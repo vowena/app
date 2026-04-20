@@ -5,11 +5,33 @@ import {
   getPlan,
 } from "@/lib/chain";
 
-export type Subscription = Awaited<
-  ReturnType<typeof getSubscription>
-> & {
-  plan?: Awaited<ReturnType<typeof getPlan>>;
-};
+export interface Plan {
+  id: number;
+  merchant: string;
+  token: string;
+  amount: number;
+  period: number;
+  trialPeriods: number;
+  maxPeriods: number;
+  gracePeriod: number;
+  priceCeiling: number;
+  createdAt: number;
+  active: boolean;
+}
+
+export interface Subscription {
+  id: number;
+  planId: number;
+  subscriber: string;
+  status: "Active" | "Paused" | "Cancelled" | "Expired" | string;
+  createdAt: number;
+  periodsBilled: number;
+  nextBillingTime: number;
+  failedAt: number;
+  migrationTarget: number;
+  cancelledAt: number;
+  plan?: Plan;
+}
 
 export function useSubscriptions(subscriberAddress: string | null) {
   return useQuery({
