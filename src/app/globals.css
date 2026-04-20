@@ -108,6 +108,7 @@
 
   --font-sans: var(--font-dm-sans);
   --font-mono: var(--font-space-mono);
+  --font-serif: var(--font-instrument-serif);
 }
 
 body {
@@ -115,6 +116,12 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Serif italic utility for editorial accents */
+.serif-italic {
+  font-family: var(--font-instrument-serif);
+  font-style: italic;
 }
 
 /* Focus rings */
