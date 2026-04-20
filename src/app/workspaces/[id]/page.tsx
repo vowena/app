@@ -10,6 +10,7 @@ import {
   type WorkspaceConfig,
 } from "@/hooks/useWorkspaces";
 import { usePro } from "@/hooks/usePro";
+import { findWorkspaceByUrlParam, workspaceUrl } from "@/lib/workspace-slug";
 import { WorkspaceSidebar } from "@/components/workspaces/workspace-sidebar";
 import { TopNav } from "@/components/top-nav";
 import { PlansTab } from "@/components/workspaces/plans-tab";
@@ -30,7 +31,7 @@ export default function WorkspaceDashboardPage() {
 function WorkspaceDashboardView() {
   const router = useRouter();
   const params = useParams();
-  const workspaceId = params.id as string;
+  const urlParam = params.id as string;
 
   const { isPro, isLoading: isProLoading } = usePro();
   const { workspaces, isLoading: isWsLoading } = useWorkspaces();
@@ -41,9 +42,17 @@ function WorkspaceDashboardView() {
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const workspace: WorkspaceConfig | undefined = workspaces.find(
-    (w) => w.id === workspaceId,
+  const workspace: WorkspaceConfig | undefined = findWorkspaceByUrlParam(
+    workspaces,
+    urlParam,
   );
+
+  // If user landed on a legacy /workspaces/0 URL, redirect to the slug version
+  useEffect(() => {
+    if (workspace && urlParam !== workspaceUrl(workspace).split("/").pop()) {
+      router.replace(workspaceUrl(workspace));
+    }
+  }, [workspace, urlParam, router]);
 
   // Pro gate
   useEffect(() => {
@@ -54,10 +63,10 @@ function WorkspaceDashboardView() {
 
   // Workspace not found after chain read completes → bounce to list
   useEffect(() => {
-    if (!isWsLoading && workspaces.length > 0 && !workspace) {
+    if (!isWsLoading && !workspace) {
       router.replace("/workspaces");
     }
-  }, [isWsLoading, workspace, workspaces.length, router]);
+  }, [isWsLoading, workspace, router]);
 
   // Load plans tagged to this workspace from chain
   useEffect(() => {

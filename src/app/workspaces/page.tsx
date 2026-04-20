@@ -10,6 +10,7 @@ import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-m
 import { TopNav } from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
 import { PlusIcon, ArrowRightIcon, CheckIcon } from "@/components/ui/icons";
+import { workspaceUrl, slugCollides } from "@/lib/workspace-slug";
 
 export default function WorkspacesPage() {
   return (
@@ -80,7 +81,7 @@ function WorkspacesView() {
             {workspaces.map((workspace) => (
               <button
                 key={workspace.id}
-                onClick={() => router.push(`/workspaces/${workspace.id}`)}
+                onClick={() => router.push(workspaceUrl(workspace))}
                 className="text-left rounded-xl border border-border bg-elevated hover:border-accent/40 transition-all duration-200 p-6 sm:p-7 group"
               >
                 <div className="flex items-start justify-between mb-5">
@@ -119,10 +120,16 @@ function WorkspacesView() {
       <CreateWorkspaceModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onCreateWorkspace={async (name, description) => {
-          const ws = await createWorkspace(name, description);
+        existingNames={workspaces.map((w) => w.name)}
+        onCreateWorkspace={async (name, description, onStatus) => {
+          if (slugCollides(workspaces, name)) {
+            throw new Error(
+              "A workspace with this name already exists. Choose another.",
+            );
+          }
+          const ws = await createWorkspace(name, description, onStatus);
           setShowCreateModal(false);
-          router.push(`/workspaces/${ws.id}`);
+          router.push(workspaceUrl(ws));
         }}
         defaultAddress={address || ""}
       />

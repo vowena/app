@@ -4,21 +4,34 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CloseIcon, AlertTriangleIcon } from "@/components/ui/icons";
+import { slugify, slugCollides } from "@/lib/workspace-slug";
+import type { CreateStatus } from "@/hooks/useWorkspaces";
 
 interface CreateWorkspaceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Returns a promise that rejects on error; UI displays the error inline. */
+  /** Pass workspace names so the modal can warn about duplicate slugs inline */
+  existingNames?: string[];
+  /** Receives status updates so we can show 'Signing…', 'Submitting…', etc. */
   onCreateWorkspace: (
     name: string,
-    description?: string,
+    description: string | undefined,
+    onStatus?: (s: CreateStatus) => void,
   ) => Promise<void> | void;
   defaultAddress?: string;
 }
 
+const STATUS_LABEL: Record<CreateStatus, string> = {
+  preparing: "Preparing transaction…",
+  signing: "Waiting for wallet signature…",
+  submitting: "Submitting to Stellar…",
+  done: "Done",
+};
+
 export function CreateWorkspaceModal({
   isOpen,
   onClose,
+  existingNames = [],
   onCreateWorkspace,
   defaultAddress,
 }: CreateWorkspaceModalProps) {
@@ -26,6 +39,7 @@ export function CreateWorkspaceModal({
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<CreateStatus | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -34,6 +48,7 @@ export function CreateWorkspaceModal({
         setDescription("");
         setIsSubmitting(false);
         setError(null);
+        setStatus(null);
       }, 200);
       return () => clearTimeout(t);
     }
@@ -58,7 +73,16 @@ export function CreateWorkspaceModal({
 
   if (!isOpen) return null;
 
-  const canSubmit = name.trim().length > 0 && !!defaultAddress;
+  const trimmed = name.trim();
+  const slug = slugify(trimmed);
+  const hasCollision =
+    !!trimmed &&
+    slugCollides(
+      existingNames.map((n) => ({ name: n })),
+      trimmed,
+    );
+  const canSubmit =
+    trimmed.length > 0 && !!defaultAddress && !!slug && !hasCollision;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,10 +90,15 @@ export function CreateWorkspaceModal({
     setError(null);
     setIsSubmitting(true);
     try {
-      await onCreateWorkspace(name.trim(), description.trim() || undefined);
+      await onCreateWorkspace(trimmed, description.trim() || undefined, (s) =>
+        setStatus(s),
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create workspace");
+      setError(
+        err instanceof Error ? err.message : "Failed to create workspace",
+      );
       setIsSubmitting(false);
+      setStatus(null);
     }
   };
 
@@ -86,7 +115,6 @@ export function CreateWorkspaceModal({
           onClick={(e) => e.stopPropagation()}
         >
           <form onSubmit={handleSubmit}>
-            {/* Header */}
             <div className="px-6 sm:px-8 pt-6 sm:pt-8 pb-6 flex items-start justify-between border-b border-border-subtle">
               <div>
                 <h2 className="text-xl font-semibold text-foreground tracking-tight">
@@ -107,7 +135,6 @@ export function CreateWorkspaceModal({
               </button>
             </div>
 
-            {/* Body */}
             <div className="px-6 sm:px-8 py-6 space-y-6">
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-2">
@@ -121,9 +148,16 @@ export function CreateWorkspaceModal({
                   disabled={isSubmitting}
                   maxLength={64}
                 />
-                <p className="text-[10px] text-muted mt-1">
-                  Stored on your Stellar account. Up to 64 characters.
-                </p>
+                {trimmed && slug && !hasCollision && (
+                  <p className="text-[10px] text-muted mt-1.5">
+                    URL: <span className="font-mono text-secondary">/workspaces/{slug}</span>
+                  </p>
+                )}
+                {hasCollision && (
+                  <p className="text-[10px] text-error mt-1.5">
+                    A workspace with this name already exists.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -140,7 +174,6 @@ export function CreateWorkspaceModal({
                 />
               </div>
 
-              {/* Receiving wallet (read-only for now) */}
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-2">
                   Receiving wallet
@@ -154,21 +187,31 @@ export function CreateWorkspaceModal({
                   </p>
                 </div>
                 <p className="text-[10px] text-muted mt-1">
-                  All payments for this workspace go to your connected wallet.
+                  Payments for this workspace go to your connected wallet.
                 </p>
               </div>
 
-              <div className="flex items-start gap-3 rounded-lg border border-warning/20 bg-warning/5 p-3">
-                <AlertTriangleIcon
-                  size={14}
-                  className="text-warning shrink-0 mt-0.5"
-                />
-                <p className="text-xs text-warning leading-relaxed">
-                  Creating a workspace writes to your Stellar account data. Your
-                  wallet will ask you to sign a transaction (small base reserve
-                  required).
-                </p>
-              </div>
+              {!isSubmitting && (
+                <div className="flex items-start gap-3 rounded-lg border border-border bg-surface/40 p-3">
+                  <AlertTriangleIcon
+                    size={14}
+                    className="text-muted shrink-0 mt-0.5"
+                  />
+                  <p className="text-xs text-secondary leading-relaxed">
+                    Your wallet will sign one transaction. A small base reserve
+                    is locked on your Stellar account for the data entries.
+                  </p>
+                </div>
+              )}
+
+              {status && (
+                <div className="flex items-center gap-3 rounded-lg border border-accent/20 bg-accent-subtle/50 p-3">
+                  <div className="w-3 h-3 rounded-full border-2 border-accent/30 border-t-accent animate-spin shrink-0" />
+                  <p className="text-xs text-accent font-medium">
+                    {STATUS_LABEL[status]}
+                  </p>
+                </div>
+              )}
 
               {error && (
                 <div className="rounded-lg border border-error/20 bg-error/5 px-3 py-2 text-xs text-error">
@@ -177,7 +220,6 @@ export function CreateWorkspaceModal({
               )}
             </div>
 
-            {/* Footer */}
             <div className="px-6 sm:px-8 py-4 border-t border-border-subtle bg-surface/30 flex items-center justify-end gap-3 rounded-b-2xl">
               <Button
                 type="button"
@@ -188,7 +230,7 @@ export function CreateWorkspaceModal({
                 Cancel
               </Button>
               <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                {isSubmitting ? "Signing…" : "Create workspace"}
+                {isSubmitting ? "Creating…" : "Create workspace"}
               </Button>
             </div>
           </form>

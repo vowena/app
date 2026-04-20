@@ -129,13 +129,17 @@ function nextSlot(existing: OnChainWorkspace[]): number {
 /**
  * Build an unsigned Stellar tx that creates a workspace (name + optional desc).
  * Also returns the slot that will be assigned.
+ *
+ * Pass `existingWorkspaces` from the react-query cache to skip an extra
+ * Horizon read on every create.
  */
 export async function buildCreateWorkspaceTx(
   address: string,
   name: string,
   description?: string,
+  existingWorkspaces?: OnChainWorkspace[],
 ): Promise<{ xdr: string; slot: number }> {
-  const existing = await readWorkspaces(address);
+  const existing = existingWorkspaces ?? (await readWorkspaces(address));
   const slot = nextSlot(existing);
 
   const account = await fetchAccount(address);

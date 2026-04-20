@@ -15,18 +15,21 @@ import {
 } from "@/lib/account-data";
 import { getPlan } from "@/lib/chain";
 
-// Kept for backwards compatibility — now the workspace IS on-chain.
 export type WorkspaceConfig = OnChainWorkspace & {
-  /** Alias for slot, used in URLs like /workspaces/[id] */
+  /** Alias kept for back-compat; equals slugified name */
   id: string;
 };
+
+export type CreateStatus = "preparing" | "signing" | "submitting" | "done";
 
 export function useWorkspaces() {
   const { address } = useWallet();
   const queryClient = useQueryClient();
 
+  const queryKey = ["workspaces", address];
+
   const query = useQuery({
-    queryKey: ["workspaces", address],
+    queryKey,
     queryFn: async (): Promise<WorkspaceConfig[]> => {
       if (!address) return [];
       const raw = await readWorkspaces(address);
@@ -37,29 +40,39 @@ export function useWorkspaces() {
     refetchOnWindowFocus: true,
   });
 
+  /**
+   * Create a workspace on-chain. Onstatus callback gets fired with stages so
+   * the UI can show granular progress. After submission, the new workspace is
+   * optimistically inserted into the cache so the UI reflects it immediately
+   * (a background refetch follows to confirm).
+   */
   const createWorkspace = useCallback(
-    async (name: string, description?: string): Promise<WorkspaceConfig> => {
+    async (
+      name: string,
+      description: string | undefined,
+      onStatus?: (s: CreateStatus) => void,
+    ): Promise<WorkspaceConfig> => {
       if (!address) throw new Error("Wallet not connected");
 
+      onStatus?.("preparing");
+      const cached = (query.data || []) as OnChainWorkspace[];
       const { xdr, slot } = await buildCreateWorkspaceTx(
         address,
         name,
         description,
+        cached,
       );
 
+      onStatus?.("signing");
       const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {
         networkPassphrase: Networks.TESTNET,
         address,
       });
 
+      onStatus?.("submitting");
       await submitToHorizon(signedTxXdr);
 
-      // Refresh the workspace list
-      await queryClient.invalidateQueries({
-        queryKey: ["workspaces", address],
-      });
-
-      return {
+      const newWorkspace: WorkspaceConfig = {
         slot,
         id: String(slot),
         name,
@@ -67,8 +80,22 @@ export function useWorkspaces() {
         planIds: [],
         merchantAddress: address,
       };
+
+      // Optimistic update — UI sees the new workspace instantly
+      queryClient.setQueryData<WorkspaceConfig[]>(queryKey, (old = []) => {
+        const next = [...old, newWorkspace].sort((a, b) => a.slot - b.slot);
+        return next;
+      });
+
+      // Background refetch to reconcile with chain (delayed to give Horizon a moment)
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey });
+      }, 2000);
+
+      onStatus?.("done");
+      return newWorkspace;
     },
-    [address, queryClient],
+    [address, queryClient, query.data, queryKey],
   );
 
   const tagPlanToWorkspace = useCallback(
@@ -82,11 +109,20 @@ export function useWorkspaces() {
       });
       await submitToHorizon(signedTxXdr);
 
-      await queryClient.invalidateQueries({
-        queryKey: ["workspaces", address],
-      });
+      // Optimistic: append planId to that workspace
+      queryClient.setQueryData<WorkspaceConfig[]>(queryKey, (old = []) =>
+        old.map((w) =>
+          w.slot === slot
+            ? { ...w, planIds: [...w.planIds, planId] }
+            : w,
+        ),
+      );
+
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey });
+      }, 2000);
     },
-    [address, queryClient],
+    [address, queryClient, queryKey],
   );
 
   const deleteWorkspace = useCallback(
@@ -100,18 +136,15 @@ export function useWorkspaces() {
       });
       await submitToHorizon(signedTxXdr);
 
-      await queryClient.invalidateQueries({
-        queryKey: ["workspaces", address],
-      });
-    },
-    [address, queryClient],
-  );
+      queryClient.setQueryData<WorkspaceConfig[]>(queryKey, (old = []) =>
+        old.filter((w) => w.slot !== slot),
+      );
 
-  const getWorkspace = useCallback(
-    (id: string): WorkspaceConfig | undefined => {
-      return query.data?.find((w) => w.id === id);
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey });
+      }, 2000);
     },
-    [query.data],
+    [address, queryClient, queryKey],
   );
 
   return {
@@ -121,29 +154,25 @@ export function useWorkspaces() {
     createWorkspace,
     tagPlanToWorkspace,
     deleteWorkspace,
-    getWorkspace,
     refetch: query.refetch,
   };
 }
 
 /**
- * Fetch all plans for a workspace (reads plan tags from account data, then
- * fetches each plan from the Vowena contract).
+ * Fetch all plans for a workspace from the Vowena contract.
  */
 export async function getWorkspacePlansWithData(
   merchantAddress: string,
   planIds?: number[],
 ) {
   try {
-    // If planIds are passed (from workspace.planIds), just fetch those.
-    // Otherwise fall back to fetching all merchant plans (legacy path).
     const ids = planIds ?? [];
     if (ids.length === 0) return [];
 
     const plans = await Promise.all(
       ids.map((id) => getPlan(id, merchantAddress).catch(() => null)),
     );
-    return plans.filter((p) => p !== null);
+    return plans.filter((p): p is NonNullable<typeof p> => p !== null);
   } catch (error) {
     console.error("Failed to fetch workspace plans:", error);
     return [];
