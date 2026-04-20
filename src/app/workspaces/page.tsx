@@ -43,7 +43,7 @@ function WorkspacesView() {
     <>
       <TopNav active="workspaces" />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+      <div className="max-w-6xl mx-auto px-6 sm:px-10 lg:px-14 py-12 sm:py-16">
         {/* Header */}
         <div className="mb-12 sm:mb-16 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
           <div className="space-y-3">

@@ -30,7 +30,7 @@ export function IntegrateTab({ workspace, plans }: IntegrateTabProps) {
           title="Install the SDK"
           description="Add Vowena to your project."
         >
-          <CodeBlock code="npm install vowena" />
+          <CodeBlock code="npm install @vowena/sdk" />
         </Step>
 
         <Step

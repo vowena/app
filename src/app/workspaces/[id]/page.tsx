@@ -35,7 +35,7 @@ function WorkspaceDashboardView() {
   const { isPro, isLoading: isProLoading } = usePro();
   const { workspaces, isLoading: isWsLoading } = useWorkspaces();
   const [activeTab, setActiveTab] = useState("plans");
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);  // eslint-disable-line @typescript-eslint/no-explicit-any
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -43,21 +43,18 @@ function WorkspaceDashboardView() {
     (w) => w.id === workspaceId,
   );
 
-  // Pro gate
   useEffect(() => {
     if (!isProLoading && !isPro) {
       router.replace("/workspaces");
     }
   }, [isPro, isProLoading, router]);
 
-  // Workspace not found → bounce to list
   useEffect(() => {
     if (!isWsLoading && !workspace) {
       router.replace("/workspaces");
     }
   }, [isWsLoading, workspace, router]);
 
-  // Load plans from chain
   useEffect(() => {
     if (!workspace) return;
     let cancelled = false;
@@ -80,15 +77,12 @@ function WorkspaceDashboardView() {
 
   const refreshPlans = () => setRefreshKey((k) => k + 1);
 
-  // Show loading skeleton while we resolve workspace + pro status
   if (isWsLoading || isProLoading || !workspace || !isPro) {
     return (
       <>
         <TopNav active="workspaces" />
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-12">
-          <div className="rounded-2xl border border-border bg-elevated/40 min-h-[calc(100vh-200px)] flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
-          </div>
+        <div className="flex items-center justify-center min-h-[calc(100vh-56px)]">
+          <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
         </div>
       </>
     );
@@ -98,47 +92,45 @@ function WorkspaceDashboardView() {
     <>
       <TopNav active="workspaces" />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6">
-        <Link
-          href="/workspaces"
-          className="text-xs text-muted hover:text-foreground transition-colors inline-flex items-center gap-1 mb-4"
-        >
-          <ChevronLeftIcon size={12} />
-          Workspaces
-        </Link>
-      </div>
+      {/* Full-width layout: sidebar flush left, content fills remaining space */}
+      <div className="flex min-h-[calc(100vh-56px)]">
+        <WorkspaceSidebar
+          workspace={workspace}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-12">
-        <div className="rounded-2xl border border-border bg-elevated/40 overflow-hidden flex flex-col lg:flex-row min-h-[calc(100vh-200px)]">
-          <WorkspaceSidebar
-            workspace={workspace}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
+        <main className="flex-1 min-w-0">
+          <div className="max-w-[1400px] mx-auto px-6 sm:px-10 lg:px-14 py-8 sm:py-12 lg:py-14">
+            {/* Breadcrumb */}
+            <Link
+              href="/workspaces"
+              className="text-xs text-muted hover:text-foreground transition-colors inline-flex items-center gap-1 mb-6"
+            >
+              <ChevronLeftIcon size={12} />
+              Workspaces
+            </Link>
 
-          <main className="flex-1 overflow-auto bg-elevated min-w-0">
-            <div className="p-5 sm:p-8 lg:p-10">
-              {activeTab === "plans" && (
-                <PlansTab
-                  workspace={workspace}
-                  plans={plans}
-                  isLoading={isLoadingPlans}
-                  onCreated={refreshPlans}
-                />
-              )}
-              {activeTab === "subscribers" && (
-                <SubscribersTab workspace={workspace} plans={plans} />
-              )}
-              {activeTab === "billing" && (
-                <BillingTab workspace={workspace} plans={plans} />
-              )}
-              {activeTab === "keeper" && <KeeperTab workspace={workspace} />}
-              {activeTab === "integrate" && (
-                <IntegrateTab workspace={workspace} plans={plans} />
-              )}
-            </div>
-          </main>
-        </div>
+            {activeTab === "plans" && (
+              <PlansTab
+                workspace={workspace}
+                plans={plans}
+                isLoading={isLoadingPlans}
+                onCreated={refreshPlans}
+              />
+            )}
+            {activeTab === "subscribers" && (
+              <SubscribersTab workspace={workspace} plans={plans} />
+            )}
+            {activeTab === "billing" && (
+              <BillingTab workspace={workspace} plans={plans} />
+            )}
+            {activeTab === "keeper" && <KeeperTab workspace={workspace} />}
+            {activeTab === "integrate" && (
+              <IntegrateTab workspace={workspace} plans={plans} />
+            )}
+          </div>
+        </main>
       </div>
     </>
   );
