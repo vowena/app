@@ -4,36 +4,46 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PlusIcon, CloseIcon, CopyIcon, CheckIcon } from "@/components/ui/icons";
+import {
+  PlusIcon,
+  CloseIcon,
+  CopyIcon,
+  CheckIcon,
+  ExternalLinkIcon,
+} from "@/components/ui/icons";
+import { createPlan } from "@/lib/contract";
 
 interface PlansTabProps {
   workspace: any;
   plans: any[];
   isLoading: boolean;
+  onCreated?: () => void;
 }
 
 const TUSDC_SAC = "CARX6UEO5WL2IMHPCFURHXNRQJQ4NHSMN26SK6FNE7FN27LISLZDINFA";
 
-export function PlansTab({ workspace, plans, isLoading }: PlansTabProps) {
+export function PlansTab({ workspace, plans, isLoading, onCreated }: PlansTabProps) {
   const [showForm, setShowForm] = useState(false);
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-end justify-between gap-6 mb-8">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent mb-2">
-            Pricing Plans
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 sm:mb-10">
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
+            Pricing plans
           </p>
-          <h2 className="text-2xl font-semibold text-foreground tracking-tight mb-1">
+          <h2 className="text-2xl sm:text-[1.75rem] font-semibold text-foreground tracking-tight">
             Plans
           </h2>
           <p className="text-sm text-secondary">
-            Define what you charge subscribers and how often.
+            Define what you charge and how often.
           </p>
         </div>
         {!showForm && (
-          <Button onClick={() => setShowForm(true)} className="gap-2 shrink-0">
+          <Button
+            onClick={() => setShowForm(true)}
+            className="gap-2 shrink-0 self-start sm:self-end"
+          >
             <PlusIcon size={14} />
             New plan
           </Button>
@@ -42,24 +52,23 @@ export function PlansTab({ workspace, plans, isLoading }: PlansTabProps) {
 
       {showForm && (
         <CreatePlanForm
+          merchantAddress={workspace.merchantAddress}
           onClose={() => setShowForm(false)}
-          onSubmit={async (data) => {
-            // TODO: wire to contract.createPlan(...)
-            console.log("Creating plan:", data);
+          onSuccess={() => {
             setShowForm(false);
+            onCreated?.();
           }}
         />
       )}
 
-      {/* Plans list */}
       {isLoading ? (
         <PlansSkeleton />
       ) : plans.length === 0 && !showForm ? (
-        <div className="rounded-xl border border-border border-dashed bg-surface/30 p-12 text-center">
-          <h3 className="text-base font-semibold text-foreground mb-2">
+        <div className="rounded-xl border border-border border-dashed bg-surface/30 p-10 sm:p-12 text-center">
+          <h3 className="text-base font-semibold text-foreground mb-2 tracking-tight">
             No plans yet
           </h3>
-          <p className="text-sm text-secondary mb-6 max-w-sm mx-auto">
+          <p className="text-sm text-secondary mb-6 max-w-sm mx-auto leading-relaxed">
             Create your first pricing plan to start accepting subscribers.
           </p>
           <Button onClick={() => setShowForm(true)} className="gap-2">
@@ -68,7 +77,7 @@ export function PlansTab({ workspace, plans, isLoading }: PlansTabProps) {
           </Button>
         </div>
       ) : plans.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {plans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} />
           ))}
@@ -79,17 +88,29 @@ export function PlansTab({ workspace, plans, isLoading }: PlansTabProps) {
 }
 
 function PlanCard({ plan }: { plan: any }) {
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const amount = (Number(plan.amount) / 1e7).toFixed(2);
+
+  const checkoutUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/p/${plan.id}`
+      : `/p/${plan.id}`;
 
   const handleCopyId = async () => {
     await navigator.clipboard.writeText(plan.id.toString());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 1500);
+  };
+
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(checkoutUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 1500);
   };
 
   return (
-    <div className="rounded-xl border border-border bg-elevated p-6 group">
+    <div className="rounded-xl border border-border bg-elevated p-6 group flex flex-col">
       <div className="flex items-start justify-between mb-5">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted mb-1.5">
@@ -101,9 +122,7 @@ function PlanCard({ plan }: { plan: any }) {
             </span>
             <span className="text-xs text-muted font-mono">USDC</span>
           </div>
-          <p className="text-xs text-muted mt-0.5">
-            every {plan.period}s
-          </p>
+          <p className="text-xs text-muted mt-0.5">every {plan.period}s</p>
         </div>
         <Badge variant={plan.active ? "active" : "expired"}>
           {plan.active ? "Active" : "Inactive"}
@@ -111,26 +130,50 @@ function PlanCard({ plan }: { plan: any }) {
       </div>
 
       <div className="space-y-1.5 text-xs mb-5 pb-5 border-b border-border-subtle">
-        <Row label="Trial" value={`${plan.trialPeriods} period${plan.trialPeriods !== 1 ? "s" : ""}`} />
-        <Row label="Max periods" value={plan.maxPeriods > 0 ? plan.maxPeriods.toString() : "Unlimited"} />
+        <Row
+          label="Trial"
+          value={`${plan.trialPeriods} period${plan.trialPeriods !== 1 ? "s" : ""}`}
+        />
+        <Row
+          label="Max periods"
+          value={plan.maxPeriods > 0 ? plan.maxPeriods.toString() : "Unlimited"}
+        />
         <Row label="Grace" value={`${plan.gracePeriod}s`} />
-        <Row label="Ceiling" value={`${(Number(plan.priceCeiling) / 1e7).toFixed(2)} USDC`} />
+        <Row
+          label="Ceiling"
+          value={`${(Number(plan.priceCeiling) / 1e7).toFixed(2)} USDC`}
+        />
       </div>
 
-      <button
-        onClick={handleCopyId}
-        className="w-full flex items-center justify-between text-xs text-muted hover:text-foreground transition-colors"
-      >
-        <span>Plan ID</span>
-        <span className="flex items-center gap-1.5 font-mono">
-          {plan.id}
-          {copied ? (
-            <CheckIcon size={12} className="text-success" />
-          ) : (
-            <CopyIcon size={12} />
-          )}
-        </span>
-      </button>
+      <div className="space-y-2 mt-auto">
+        <button
+          onClick={handleCopyLink}
+          className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-accent-subtle text-accent hover:bg-accent hover:text-white transition-colors text-xs font-medium"
+        >
+          <span className="flex items-center gap-2">
+            {copiedLink ? (
+              <CheckIcon size={12} />
+            ) : (
+              <ExternalLinkIcon size={12} />
+            )}
+            {copiedLink ? "Link copied" : "Copy checkout link"}
+          </span>
+        </button>
+        <button
+          onClick={handleCopyId}
+          className="w-full flex items-center justify-between text-xs text-muted hover:text-foreground transition-colors px-3"
+        >
+          <span>Plan ID</span>
+          <span className="flex items-center gap-1.5 font-mono">
+            {plan.id}
+            {copiedId ? (
+              <CheckIcon size={12} className="text-success" />
+            ) : (
+              <CopyIcon size={12} />
+            )}
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -145,34 +188,46 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function CreatePlanForm({
+  merchantAddress,
   onClose,
-  onSubmit,
+  onSuccess,
 }: {
+  merchantAddress: string;
   onClose: () => void;
-  onSubmit: (data: any) => Promise<void>;
+  onSuccess: () => void;
 }) {
   const [token, setToken] = useState(TUSDC_SAC);
   const [amount, setAmount] = useState("");
-  const [period, setPeriod] = useState("2592000"); // 30 days
+  const [period, setPeriod] = useState("2592000");
   const [trialPeriods, setTrialPeriods] = useState("0");
   const [maxPeriods, setMaxPeriods] = useState("0");
-  const [gracePeriod, setGracePeriod] = useState("86400"); // 1 day
+  const [gracePeriod, setGracePeriod] = useState("86400");
   const [priceCeiling, setPriceCeiling] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsSubmitting(true);
     try {
-      await onSubmit({
+      const amt = parseFloat(amount);
+      const ceiling = priceCeiling ? parseFloat(priceCeiling) : amt * 2;
+
+      await createPlan({
+        merchant: merchantAddress,
         token,
-        amount: BigInt(Math.floor(parseFloat(amount) * 1e7)),
+        amountUsdc: amt,
         period: parseInt(period),
         trialPeriods: parseInt(trialPeriods),
         maxPeriods: parseInt(maxPeriods),
         gracePeriod: parseInt(gracePeriod),
-        priceCeiling: BigInt(Math.floor(parseFloat(priceCeiling || amount) * 2 * 1e7)),
+        priceCeilingUsdc: ceiling,
       });
+
+      onSuccess();
+    } catch (err: any) {
+      setError(err?.message || "Failed to create plan");
     } finally {
       setIsSubmitting(false);
     }
@@ -181,7 +236,7 @@ function CreatePlanForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-border bg-elevated p-6 mb-6"
+      className="rounded-xl border border-border bg-elevated p-6 sm:p-8 mb-6 sm:mb-8"
     >
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -189,17 +244,23 @@ function CreatePlanForm({
             New plan
           </h3>
           <p className="text-xs text-secondary mt-1">
-            Configure your subscription pricing.
+            This creates a plan on the Stellar blockchain.
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="text-muted hover:text-foreground hover:bg-surface rounded-md p-2 transition-colors"
+          className="text-muted hover:text-foreground hover:bg-surface rounded-md p-2 transition-colors -m-2"
         >
           <CloseIcon size={14} />
         </button>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-error/20 bg-error/5 px-3 py-2 text-xs text-error">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Amount (USDC)" required>
@@ -256,7 +317,10 @@ function CreatePlanForm({
           />
         </Field>
 
-        <Field label="Price ceiling (USDC)" hint="Max future price (defaults to 2× amount)">
+        <Field
+          label="Price ceiling (USDC)"
+          hint="Max future price (defaults to 2× amount)"
+        >
           <Input
             type="number"
             step="0.01"
@@ -278,11 +342,16 @@ function CreatePlanForm({
       </div>
 
       <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-border-subtle">
-        <Button type="button" variant="ghost" onClick={onClose}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting || !amount}>
-          {isSubmitting ? "Creating…" : "Create plan"}
+          {isSubmitting ? "Signing & submitting…" : "Create plan"}
         </Button>
       </div>
     </form>
@@ -314,7 +383,7 @@ function Field({
 
 function PlansSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
       {[1, 2, 3].map((i) => (
         <div
           key={i}

@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { useWallet } from "@/components/wallet/wallet-provider";
-import { VowenaLogo, VowenaSymbol } from "@/components/vowena-logo";
+import { VowenaLogo } from "@/components/vowena-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
-  WalletIcon,
   LogoutIcon,
   CopyIcon,
   CheckIcon,
@@ -23,7 +22,6 @@ export function TopNav({ active }: TopNavProps) {
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close menu on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -44,19 +42,18 @@ export function TopNav({ active }: TopNavProps) {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
-      <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-        {/* Left: Logo */}
-        <div className="flex items-center gap-8">
-          <Link href="/subscriptions" className="flex items-center">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+        {/* Left: Logo + nav */}
+        <div className="flex items-center gap-4 sm:gap-8 min-w-0">
+          <Link href="/subscriptions" className="flex items-center shrink-0">
             <VowenaLogo size="sm" />
           </Link>
 
-          {/* Nav tabs */}
-          <nav className="hidden sm:flex items-center gap-1">
+          <nav className="flex items-center gap-1 -mx-1">
             <Link
               href="/subscriptions"
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                 active === "subscriptions"
                   ? "text-foreground bg-surface"
                   : "text-muted hover:text-foreground hover:bg-surface/50"
@@ -66,7 +63,7 @@ export function TopNav({ active }: TopNavProps) {
             </Link>
             <Link
               href="/workspaces"
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                 active === "workspaces"
                   ? "text-foreground bg-surface"
                   : "text-muted hover:text-foreground hover:bg-surface/50"
@@ -77,22 +74,27 @@ export function TopNav({ active }: TopNavProps) {
           </nav>
         </div>
 
-        {/* Right: Theme toggle + wallet */}
-        <div className="flex items-center gap-2">
+        {/* Right: Theme + wallet */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <ThemeToggle />
 
           {address && (
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setWalletMenuOpen(!walletMenuOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono text-secondary hover:text-foreground hover:bg-surface transition-all border border-border"
+                className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-mono text-secondary hover:text-foreground hover:bg-surface transition-all border border-border"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                {address.slice(0, 4)}…{address.slice(-4)}
+                <span className="hidden sm:inline">
+                  {address.slice(0, 4)}…{address.slice(-4)}
+                </span>
+                <span className="sm:hidden">
+                  {address.slice(0, 3)}…
+                </span>
               </button>
 
               {walletMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-border bg-elevated shadow-2xl overflow-hidden">
+                <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-elevated shadow-2xl overflow-hidden">
                   <div className="px-4 py-3 border-b border-border">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-2">
                       Connected wallet

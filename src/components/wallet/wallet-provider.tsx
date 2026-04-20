@@ -4,104 +4,125 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
-  useEffect,
 } from "react";
+import { useRouter } from "next/navigation";
 import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit/sdk";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
-import { Networks } from "@creit.tech/stellar-wallets-kit";
+import { Networks, KitEventType } from "@creit.tech/stellar-wallets-kit";
 
 interface WalletContextValue {
   address: string | null;
   isConnected: boolean;
+  isInitializing: boolean;
   connect: () => Promise<void>;
-  disconnect: () => void;
-  signTransaction: (xdr: string, networkPassphrase?: string) => Promise<string>;
+  disconnect: () => Promise<void>;
+  signTransaction: (
+    xdr: string,
+    networkPassphrase?: string,
+  ) => Promise<string>;
 }
 
 export const WalletContext = createContext<WalletContextValue | null>(null);
 
+let kitInitialized = false;
+
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const router = useRouter();
 
-  const isConnected = address !== null;
-
-  // Initialize the Stellar Wallets Kit once on mount
+  // Initialize kit + restore prior session from localStorage
   useEffect(() => {
-    try {
-      StellarWalletsKit.init({
-        modules: defaultModules(),
-      });
-      StellarWalletsKit.setNetwork(Networks.TESTNET);
-      setIsInitialized(true);
-    } catch (error) {
-      console.error("Failed to initialize StellarWalletsKit:", error);
-    }
+    let mounted = true;
+
+    const restore = async () => {
+      try {
+        if (!kitInitialized) {
+          StellarWalletsKit.init({
+            modules: defaultModules(),
+            network: Networks.TESTNET,
+          });
+          kitInitialized = true;
+        }
+
+        // Try to read the persisted address (kit auto-restores from localStorage)
+        try {
+          const result = await StellarWalletsKit.getAddress();
+          if (mounted && result?.address) {
+            setAddress(result.address);
+          }
+        } catch {
+          // No persisted session
+        }
+      } catch (error) {
+        console.error("Failed to initialize wallet kit:", error);
+      } finally {
+        if (mounted) setIsInitializing(false);
+      }
+    };
+
+    restore();
+
+    // Listen for disconnect events from the kit
+    const unsubscribe = StellarWalletsKit.on(
+      KitEventType.DISCONNECT,
+      () => {
+        if (mounted) setAddress(null);
+      },
+    );
+
+    return () => {
+      mounted = false;
+      unsubscribe?.();
+    };
   }, []);
 
   const connect = useCallback(async () => {
-    if (!isInitialized) {
-      throw new Error("Wallet kit not initialized");
-    }
-
     try {
       const result = await StellarWalletsKit.authModal();
       setAddress(result.address);
     } catch (error) {
-      console.error("Failed to connect wallet:", error);
-      // User likely cancelled the modal
-      throw error;
+      // User cancelled or modal closed — don't throw
+      console.warn("Wallet connection cancelled:", error);
     }
-  }, [isInitialized]);
+  }, []);
 
   const disconnect = useCallback(async () => {
     try {
       await StellarWalletsKit.disconnect();
-      setAddress(null);
     } catch (error) {
-      console.error("Failed to disconnect wallet:", error);
-      setAddress(null);
+      console.error("Disconnect error:", error);
     }
-  }, []);
+    setAddress(null);
+    router.push("/");
+  }, [router]);
 
   const signTransaction = useCallback(
     async (xdr: string, networkPassphrase?: string) => {
-      if (!isConnected) {
-        throw new Error("Wallet not connected");
-      }
-
-      if (!isInitialized) {
-        throw new Error("Wallet kit not initialized");
-      }
-
-      try {
-        const result = await StellarWalletsKit.signTransaction(xdr, {
-          networkPassphrase: networkPassphrase ?? "Test SDF Network ; September 2015",
-          address,
-        });
-        return result.signedTxXdr;
-      } catch (error) {
-        throw new Error(
-          `Transaction signing failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
+      if (!address) throw new Error("Wallet not connected");
+      const result = await StellarWalletsKit.signTransaction(xdr, {
+        networkPassphrase:
+          networkPassphrase ?? "Test SDF Network ; September 2015",
+        address,
+      });
+      return result.signedTxXdr;
     },
-    [isConnected, isInitialized, address]
+    [address],
   );
 
   const value = useMemo<WalletContextValue>(
     () => ({
       address,
-      isConnected,
+      isConnected: address !== null,
+      isInitializing,
       connect,
       disconnect,
       signTransaction,
     }),
-    [address, isConnected, connect, disconnect, signTransaction]
+    [address, isInitializing, connect, disconnect, signTransaction],
   );
 
   return (
