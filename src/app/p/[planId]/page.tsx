@@ -4,9 +4,14 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useWallet } from "@/components/wallet/wallet-provider";
-import { getPlan, type ChainPlan } from "@/lib/chain";
+import {
+  getPlan,
+  getSubscriberSubscriptions,
+  getSubscription,
+  type ChainPlan,
+} from "@/lib/chain";
 import { getLatestLedger, subscribeToPlan } from "@/lib/contract";
-import { decodePlanId } from "@/lib/plan-id-codec";
+import { decodePlanId, encodePlanId } from "@/lib/plan-id-codec";
 import {
   readProjects,
   buildTrustlineTx,
@@ -50,7 +55,37 @@ export default function CheckoutPage() {
   const [needsFunding, setNeedsFunding] = useState(false);
   const [isFunding, setIsFunding] = useState(false);
   const [fundingMessage, setFundingMessage] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ subId: number } | null>(null);
+  const [existingSubId, setExistingSubId] = useState<number | null>(null);
+  const [success, setSuccess] = useState<{ subId?: number } | null>(null);
+
+  // After wallet connects, check if subscriber already has an active sub to
+  // this plan. Prevents duplicate subscriptions and shows a friendly link to
+  // their existing one instead.
+  useEffect(() => {
+    if (!isConnected || !address || isNaN(planId) || planId <= 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const subIds = await getSubscriberSubscriptions(address);
+        for (const id of subIds) {
+          const sub = await getSubscription(id, address);
+          if (
+            sub.planId === planId &&
+            (sub.status === "Active" || sub.status === "Paused")
+          ) {
+            if (!cancelled) setExistingSubId(id);
+            return;
+          }
+        }
+        if (!cancelled) setExistingSubId(null);
+      } catch {
+        // Best-effort — if this fails, the chain will still reject duplicates
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, address, planId, success]);
 
   const handleFund = async () => {
     if (!address) return;
@@ -157,26 +192,36 @@ export default function CheckoutPage() {
     setIsSubscribing(true);
     try {
       const ledger = await getLatestLedger();
-      const result = await subscribeToPlan({
+      // Snapshot current sub IDs so we can identify the new one after submit.
+      const before = new Set(await getSubscriberSubscriptions(address));
+
+      await subscribeToPlan({
         subscriber: address,
         planId: plan.id,
         expirationLedger: ledger + 2_900_000,
         allowancePeriods: plan.maxPeriods > 0 ? plan.maxPeriods : 120,
       });
 
-      const subId = extractSubId(result);
+      // Resolve the actual new sub ID by diffing the subscriber's list.
+      // More reliable than parsing the contract return value.
+      let subId: number | undefined;
+      const after = await getSubscriberSubscriptions(address);
+      const fresh = after.filter((id) => !before.has(id));
+      if (fresh.length > 0) {
+        subId = Math.max(...fresh);
+      }
 
       // If a return URL was provided, redirect with success params
       if (returnUrl) {
         const url = new URL(returnUrl);
         url.searchParams.set("status", "success");
-        if (subId) url.searchParams.set("sub_id", String(subId));
+        if (subId != null) url.searchParams.set("sub_id", String(subId));
         if (reference) url.searchParams.set("reference", reference);
         window.location.href = url.toString();
         return;
       }
 
-      setSuccess({ subId: subId ?? 0 });
+      setSuccess({ subId });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to subscribe";
 
@@ -264,6 +309,7 @@ export default function CheckoutPage() {
             isFunding={isFunding}
             fundingMessage={fundingMessage}
             onFund={handleFund}
+            existingSubId={existingSubId}
             onSubscribe={handleSubscribe}
             onCancel={cancelUrl ? handleCancel : undefined}
             address={address}
@@ -302,6 +348,7 @@ function CheckoutBody({
   isFunding,
   fundingMessage,
   onFund,
+  existingSubId,
   onSubscribe,
   onCancel,
   address,
@@ -321,6 +368,7 @@ function CheckoutBody({
   isFunding: boolean;
   fundingMessage: string | null;
   onFund: () => Promise<void>;
+  existingSubId: number | null;
   onSubscribe: () => void;
   onCancel?: () => void;
   address: string | null;
@@ -496,6 +544,27 @@ function CheckoutBody({
             Connect wallet to continue
             <ArrowRightIcon size={14} />
           </Button>
+        ) : existingSubId != null ? (
+          <div className="rounded-lg border border-success/30 bg-success-subtle p-4 space-y-3">
+            <div className="flex items-start gap-2.5">
+              <CheckIcon size={14} className="shrink-0 mt-0.5 text-success" />
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-success">
+                  You&apos;re already subscribed
+                </p>
+                <p className="text-xs text-secondary leading-relaxed">
+                  This wallet has an active subscription to this plan. You
+                  don&apos;t need to subscribe again.
+                </p>
+              </div>
+            </div>
+            <Link href="/subscriptions">
+              <Button size="sm" variant="outline" className="w-full gap-1.5">
+                View my subscriptions
+                <ArrowRightIcon size={12} />
+              </Button>
+            </Link>
+          </div>
         ) : (
           <Button
             size="lg"
@@ -560,10 +629,11 @@ function SuccessView({
   returnUrl,
   reference,
 }: {
-  subId: number;
+  subId?: number;
   returnUrl: string;
   reference: string;
 }) {
+  const encoded = subId != null ? encodePlanId(subId) : null;
   return (
     <div className="rounded-2xl border border-border bg-elevated/80 backdrop-blur-xl shadow-2xl p-8 text-center">
       <div className="w-12 h-12 rounded-full bg-success-subtle flex items-center justify-center mx-auto mb-5">
@@ -573,7 +643,9 @@ function SuccessView({
         You&apos;re subscribed
       </h2>
       <p className="text-sm text-secondary mb-6 leading-relaxed">
-        Subscription #{subId} is active on the Stellar blockchain.
+        {encoded
+          ? `Subscription sub_${encoded} is active on the Stellar blockchain.`
+          : "Your subscription is active on the Stellar blockchain."}
       </p>
       <div className="space-y-2">
         <Link href="/subscriptions">
@@ -584,7 +656,7 @@ function SuccessView({
         </Link>
         {returnUrl && (
           <a
-            href={`${returnUrl}${returnUrl.includes("?") ? "&" : "?"}status=success&sub_id=${subId}${reference ? `&reference=${encodeURIComponent(reference)}` : ""}`}
+            href={`${returnUrl}${returnUrl.includes("?") ? "&" : "?"}status=success${subId != null ? `&sub_id=${subId}` : ""}${reference ? `&reference=${encodeURIComponent(reference)}` : ""}`}
           >
             <Button variant="outline" className="w-full gap-2">
               Continue
@@ -642,19 +714,3 @@ function formatPeriod(seconds: number): string {
   return `${seconds}s`;
 }
 
-function extractSubId(result: unknown): number | undefined {
-  try {
-    const r = result as Record<string, unknown>;
-    const value =
-      (r?.returnValue as unknown) ?? (r?.value as unknown) ?? result;
-    if (typeof value === "number") return value;
-    if (typeof value === "bigint") return Number(value);
-    const withToBigInt = value as { toBigInt?: () => bigint };
-    if (typeof withToBigInt?.toBigInt === "function") {
-      return Number(withToBigInt.toBigInt());
-    }
-    return undefined;
-  } catch {
-    return undefined;
-  }
-}
