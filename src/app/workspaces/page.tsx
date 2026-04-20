@@ -9,11 +9,7 @@ import { useWorkspaces } from "@/hooks/useWorkspaces";
 import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-modal";
 import { TopNav } from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
-import {
-  PlusIcon,
-  ArrowRightIcon,
-  CheckIcon,
-} from "@/components/ui/icons";
+import { PlusIcon, ArrowRightIcon, CheckIcon } from "@/components/ui/icons";
 
 export default function WorkspacesPage() {
   return (
@@ -27,7 +23,7 @@ function WorkspacesView() {
   const { address } = useWallet();
   const router = useRouter();
   const { isPro, activate } = usePro();
-  const { workspaces, createWorkspace } = useWorkspaces();
+  const { workspaces, isLoading, createWorkspace } = useWorkspaces();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   if (!isPro) {
@@ -43,7 +39,7 @@ function WorkspacesView() {
     <>
       <TopNav active="workspaces" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         {/* Header */}
         <div className="mb-12 sm:mb-16 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
           <div className="space-y-3">
@@ -57,12 +53,14 @@ function WorkspacesView() {
               </span>
             </h1>
             <p className="text-secondary text-sm max-w-md">
-              {workspaces.length === 0
-                ? "Create a workspace for each product or service you charge for."
-                : `${workspaces.length} workspace${workspaces.length !== 1 ? "s" : ""} on Stellar.`}
+              {isLoading
+                ? "Reading from Stellar…"
+                : workspaces.length === 0
+                  ? "Create a workspace for each product or service you charge for."
+                  : `${workspaces.length} workspace${workspaces.length !== 1 ? "s" : ""} on Stellar.`}
             </p>
           </div>
-          {workspaces.length > 0 && (
+          {!isLoading && workspaces.length > 0 && (
             <Button
               onClick={() => setShowCreateModal(true)}
               className="gap-2 shrink-0 self-start sm:self-end"
@@ -73,15 +71,17 @@ function WorkspacesView() {
           )}
         </div>
 
-        {workspaces.length === 0 ? (
+        {isLoading ? (
+          <WorkspacesSkeleton />
+        ) : workspaces.length === 0 ? (
           <EmptyState onCreate={() => setShowCreateModal(true)} />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {workspaces.map((workspace) => (
               <button
                 key={workspace.id}
                 onClick={() => router.push(`/workspaces/${workspace.id}`)}
-                className="text-left rounded-xl border border-border bg-elevated hover:border-accent/40 hover:bg-elevated transition-all duration-200 p-6 sm:p-7 group"
+                className="text-left rounded-xl border border-border bg-elevated hover:border-accent/40 transition-all duration-200 p-6 sm:p-7 group"
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-sm">
@@ -100,10 +100,16 @@ function WorkspacesView() {
                     {workspace.description}
                   </p>
                 )}
-                <p className="text-xs font-mono text-muted truncate">
-                  {workspace.merchantAddress.slice(0, 6)}…
-                  {workspace.merchantAddress.slice(-6)}
-                </p>
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <p className="font-mono text-muted truncate">
+                    {workspace.merchantAddress.slice(0, 6)}…
+                    {workspace.merchantAddress.slice(-6)}
+                  </p>
+                  <span className="text-muted shrink-0">
+                    {workspace.planIds.length} plan
+                    {workspace.planIds.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
               </button>
             ))}
           </div>
@@ -113,8 +119,8 @@ function WorkspacesView() {
       <CreateWorkspaceModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onCreateWorkspace={(name, merchantAddress, description) => {
-          const ws = createWorkspace(name, merchantAddress, description);
+        onCreateWorkspace={async (name, description) => {
+          const ws = await createWorkspace(name, description);
           setShowCreateModal(false);
           router.push(`/workspaces/${ws.id}`);
         }}
@@ -143,7 +149,7 @@ function UpgradeView({ onActivate }: { onActivate: () => void }) {
         <div className="w-[600px] h-[300px] rounded-full bg-accent/5 blur-3xl" />
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-20 sm:pt-28 pb-24 sm:pb-32">
+      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-28 pb-24 sm:pb-32">
         <div className="text-center max-w-2xl mx-auto">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent mb-6">
             Vowena Pro
@@ -183,7 +189,7 @@ function UpgradeView({ onActivate }: { onActivate: () => void }) {
             {
               title: "Unlimited workspaces",
               description:
-                "Create separate billing setups for each product or project.",
+                "Stored natively on your Stellar account. Cross-device by default.",
             },
             {
               title: "Shareable checkout",
@@ -231,6 +237,24 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         <PlusIcon size={14} />
         Create workspace
       </Button>
+    </div>
+  );
+}
+
+function WorkspacesSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="rounded-xl border border-border bg-elevated p-6 sm:p-7 animate-pulse"
+        >
+          <div className="w-10 h-10 rounded-lg bg-surface mb-5" />
+          <div className="h-4 w-32 bg-surface rounded mb-2" />
+          <div className="h-3 w-48 bg-surface rounded mb-5" />
+          <div className="h-3 w-24 bg-surface rounded" />
+        </div>
+      ))}
     </div>
   );
 }

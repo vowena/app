@@ -41,7 +41,7 @@ function SubscriptionsView() {
     <>
       <TopNav active="subscriptions" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         {/* Header */}
         <div className="mb-12 sm:mb-16 space-y-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">

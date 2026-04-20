@@ -1,103 +1,149 @@
-import { useCallback, useEffect, useState } from "react";
-import { getMerchantPlans, getPlan } from "@/lib/chain";
+"use client";
 
-export interface WorkspaceConfig {
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit/sdk";
+import { Networks } from "@creit.tech/stellar-wallets-kit";
+import { useWallet } from "@/components/wallet/wallet-provider";
+import {
+  readWorkspaces,
+  buildCreateWorkspaceTx,
+  buildTagPlanTx,
+  buildDeleteWorkspaceTx,
+  submitToHorizon,
+  type OnChainWorkspace,
+} from "@/lib/account-data";
+import { getPlan } from "@/lib/chain";
+
+// Kept for backwards compatibility — now the workspace IS on-chain.
+export type WorkspaceConfig = OnChainWorkspace & {
+  /** Alias for slot, used in URLs like /workspaces/[id] */
   id: string;
-  name: string;
-  description?: string;
-  merchantAddress: string;
-  createdAt: number;
-}
-
-const STORAGE_KEY = "vowena:workspaces";
+};
 
 export function useWorkspaces() {
-  const [workspaces, setWorkspaces] = useState<WorkspaceConfig[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { address } = useWallet();
+  const queryClient = useQueryClient();
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setWorkspaces(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error("Failed to load workspaces from localStorage:", error);
-    }
-    setIsLoading(false);
-  }, []);
-
-  const saveWorkspaces = useCallback((ws: WorkspaceConfig[]) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(ws));
-      setWorkspaces(ws);
-    } catch (error) {
-      console.error("Failed to save workspaces to localStorage:", error);
-      throw error;
-    }
-  }, []);
+  const query = useQuery({
+    queryKey: ["workspaces", address],
+    queryFn: async (): Promise<WorkspaceConfig[]> => {
+      if (!address) return [];
+      const raw = await readWorkspaces(address);
+      return raw.map((w) => ({ ...w, id: String(w.slot) }));
+    },
+    enabled: !!address,
+    staleTime: 5_000,
+    refetchOnWindowFocus: true,
+  });
 
   const createWorkspace = useCallback(
-    (
-      name: string,
-      merchantAddress: string,
-      description?: string
-    ): WorkspaceConfig => {
-      const newWorkspace: WorkspaceConfig = {
-        id: crypto.randomUUID(),
+    async (name: string, description?: string): Promise<WorkspaceConfig> => {
+      if (!address) throw new Error("Wallet not connected");
+
+      const { xdr, slot } = await buildCreateWorkspaceTx(
+        address,
         name,
         description,
-        merchantAddress,
-        createdAt: Date.now(),
-      };
+      );
 
-      saveWorkspaces([...workspaces, newWorkspace]);
-      return newWorkspace;
+      const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {
+        networkPassphrase: Networks.TESTNET,
+        address,
+      });
+
+      await submitToHorizon(signedTxXdr);
+
+      // Refresh the workspace list
+      await queryClient.invalidateQueries({
+        queryKey: ["workspaces", address],
+      });
+
+      return {
+        slot,
+        id: String(slot),
+        name,
+        description,
+        planIds: [],
+        merchantAddress: address,
+      };
     },
-    [workspaces, saveWorkspaces]
+    [address, queryClient],
   );
 
-  const updateWorkspace = useCallback(
-    (id: string, updates: Partial<Omit<WorkspaceConfig, "id" | "merchantAddress" | "createdAt">>) => {
-      const updated = workspaces.map((w) =>
-        w.id === id ? { ...w, ...updates } : w
-      );
-      saveWorkspaces(updated);
+  const tagPlanToWorkspace = useCallback(
+    async (planId: number, slot: number): Promise<void> => {
+      if (!address) throw new Error("Wallet not connected");
+
+      const xdr = await buildTagPlanTx(address, planId, slot);
+      const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {
+        networkPassphrase: Networks.TESTNET,
+        address,
+      });
+      await submitToHorizon(signedTxXdr);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["workspaces", address],
+      });
     },
-    [workspaces, saveWorkspaces]
+    [address, queryClient],
   );
 
   const deleteWorkspace = useCallback(
-    (id: string) => {
-      const filtered = workspaces.filter((w) => w.id !== id);
-      saveWorkspaces(filtered);
+    async (slot: number): Promise<void> => {
+      if (!address) throw new Error("Wallet not connected");
+
+      const xdr = await buildDeleteWorkspaceTx(address, slot);
+      const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {
+        networkPassphrase: Networks.TESTNET,
+        address,
+      });
+      await submitToHorizon(signedTxXdr);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["workspaces", address],
+      });
     },
-    [workspaces, saveWorkspaces]
+    [address, queryClient],
   );
 
   const getWorkspace = useCallback(
-    (id: string) => workspaces.find((w) => w.id === id),
-    [workspaces]
+    (id: string): WorkspaceConfig | undefined => {
+      return query.data?.find((w) => w.id === id);
+    },
+    [query.data],
   );
 
   return {
-    workspaces,
-    isLoading,
+    workspaces: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
     createWorkspace,
-    updateWorkspace,
+    tagPlanToWorkspace,
     deleteWorkspace,
     getWorkspace,
+    refetch: query.refetch,
   };
 }
 
-export async function getWorkspacePlansWithData(merchantAddress: string) {
+/**
+ * Fetch all plans for a workspace (reads plan tags from account data, then
+ * fetches each plan from the Vowena contract).
+ */
+export async function getWorkspacePlansWithData(
+  merchantAddress: string,
+  planIds?: number[],
+) {
   try {
-    const planIds = await getMerchantPlans(merchantAddress);
+    // If planIds are passed (from workspace.planIds), just fetch those.
+    // Otherwise fall back to fetching all merchant plans (legacy path).
+    const ids = planIds ?? [];
+    if (ids.length === 0) return [];
+
     const plans = await Promise.all(
-      planIds.map((id) => getPlan(id, merchantAddress))
+      ids.map((id) => getPlan(id, merchantAddress).catch(() => null)),
     );
-    return plans;
+    return plans.filter((p) => p !== null);
   } catch (error) {
     console.error("Failed to fetch workspace plans:", error);
     return [];

@@ -12,6 +12,7 @@ import {
   ExternalLinkIcon,
 } from "@/components/ui/icons";
 import { createPlan } from "@/lib/contract";
+import { useWorkspaces } from "@/hooks/useWorkspaces";
 
 interface PlansTabProps {
   workspace: any;
@@ -53,6 +54,7 @@ export function PlansTab({ workspace, plans, isLoading, onCreated }: PlansTabPro
       {showForm && (
         <CreatePlanForm
           merchantAddress={workspace.merchantAddress}
+          workspaceSlot={workspace.slot}
           onClose={() => setShowForm(false)}
           onSuccess={() => {
             setShowForm(false);
@@ -189,13 +191,16 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function CreatePlanForm({
   merchantAddress,
+  workspaceSlot,
   onClose,
   onSuccess,
 }: {
   merchantAddress: string;
+  workspaceSlot: number;
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const { tagPlanToWorkspace, refetch } = useWorkspaces();
   const [token, setToken] = useState(TUSDC_SAC);
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState("2592000");
@@ -206,6 +211,10 @@ function CreatePlanForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [submitStatus, setSubmitStatus] = useState<
+    "" | "creating" | "tagging"
+  >("");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -214,7 +223,9 @@ function CreatePlanForm({
       const amt = parseFloat(amount);
       const ceiling = priceCeiling ? parseFloat(priceCeiling) : amt * 2;
 
-      await createPlan({
+      // Step 1: create plan on the Vowena contract
+      setSubmitStatus("creating");
+      const result = await createPlan({
         merchant: merchantAddress,
         token,
         amountUsdc: amt,
@@ -225,11 +236,27 @@ function CreatePlanForm({
         priceCeilingUsdc: ceiling,
       });
 
+      // Step 2: extract plan ID and tag it to the workspace
+      const planId = extractPlanId(result);
+      if (planId != null) {
+        setSubmitStatus("tagging");
+        try {
+          await tagPlanToWorkspace(planId, workspaceSlot);
+        } catch (tagErr) {
+          console.error("Plan created but tagging failed:", tagErr);
+          // Non-fatal — plan exists on chain, just not tagged to this workspace
+        }
+      }
+
+      await refetch();
       onSuccess();
-    } catch (err: any) {
-      setError(err?.message || "Failed to create plan");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create plan",
+      );
     } finally {
       setIsSubmitting(false);
+      setSubmitStatus("");
     }
   };
 
@@ -351,7 +378,13 @@ function CreatePlanForm({
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting || !amount}>
-          {isSubmitting ? "Signing & submitting…" : "Create plan"}
+          {submitStatus === "creating"
+            ? "Creating plan on chain…"
+            : submitStatus === "tagging"
+              ? "Saving to workspace…"
+              : isSubmitting
+                ? "Signing…"
+                : "Create plan"}
         </Button>
       </div>
     </form>
@@ -379,6 +412,28 @@ function Field({
       {hint && <p className="text-[10px] text-muted mt-1">{hint}</p>}
     </div>
   );
+}
+
+/**
+ * Pull the plan ID (u64) out of a Vowena contract create_plan submit result.
+ * The SDK returns `returnValue` which may be a number, bigint, or an ScVal-like
+ * object depending on the submission path. Handle all of them.
+ */
+function extractPlanId(result: unknown): number | null {
+  try {
+    const r = result as { returnValue?: unknown };
+    const v = r?.returnValue;
+    if (v == null) return null;
+    if (typeof v === "number") return v;
+    if (typeof v === "bigint") return Number(v);
+    if (typeof v === "string" && /^\d+$/.test(v)) return Number(v);
+    const maybe = v as { toBigInt?: () => bigint; u64?: () => bigint };
+    if (typeof maybe?.toBigInt === "function") return Number(maybe.toBigInt());
+    if (typeof maybe?.u64 === "function") return Number(maybe.u64());
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 function PlansSkeleton() {

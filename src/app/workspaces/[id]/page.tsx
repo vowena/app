@@ -35,7 +35,9 @@ function WorkspaceDashboardView() {
   const { isPro, isLoading: isProLoading } = usePro();
   const { workspaces, isLoading: isWsLoading } = useWorkspaces();
   const [activeTab, setActiveTab] = useState("plans");
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<
+    Awaited<ReturnType<typeof getWorkspacePlansWithData>>
+  >([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -50,21 +52,24 @@ function WorkspaceDashboardView() {
     }
   }, [isPro, isProLoading, router]);
 
-  // Workspace not found → bounce to list
+  // Workspace not found after chain read completes → bounce to list
   useEffect(() => {
-    if (!isWsLoading && !workspace) {
+    if (!isWsLoading && workspaces.length > 0 && !workspace) {
       router.replace("/workspaces");
     }
-  }, [isWsLoading, workspace, router]);
+  }, [isWsLoading, workspace, workspaces.length, router]);
 
-  // Load plans from chain
+  // Load plans tagged to this workspace from chain
   useEffect(() => {
     if (!workspace) return;
     let cancelled = false;
     const load = async () => {
       setIsLoadingPlans(true);
       try {
-        const data = await getWorkspacePlansWithData(workspace.merchantAddress);
+        const data = await getWorkspacePlansWithData(
+          workspace.merchantAddress,
+          workspace.planIds,
+        );
         if (!cancelled) setPlans(data);
       } catch (e) {
         console.error(e);
@@ -80,12 +85,12 @@ function WorkspaceDashboardView() {
 
   const refreshPlans = () => setRefreshKey((k) => k + 1);
 
-  // Show loading skeleton while we resolve workspace + pro status
+  // Loading skeleton while resolving workspace + pro status
   if (isWsLoading || isProLoading || !workspace || !isPro) {
     return (
       <>
         <TopNav active="workspaces" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12">
           <div className="rounded-2xl border border-border bg-elevated/40 min-h-[calc(100vh-200px)] flex items-center justify-center">
             <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
           </div>
@@ -98,7 +103,7 @@ function WorkspaceDashboardView() {
     <>
       <TopNav active="workspaces" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <Link
           href="/workspaces"
           className="text-xs text-muted hover:text-foreground transition-colors inline-flex items-center gap-1 mb-4"
@@ -108,7 +113,7 @@ function WorkspaceDashboardView() {
         </Link>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <div className="rounded-2xl border border-border bg-elevated/40 overflow-hidden flex flex-col lg:flex-row min-h-[calc(100vh-200px)]">
           <WorkspaceSidebar
             workspace={workspace}
