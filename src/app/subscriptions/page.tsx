@@ -20,14 +20,6 @@ export default function SubscriptionsPage() {
       ? subscriptions.find((s) => s.id === selectedSubId)
       : null;
 
-  if (!address) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
   const activeCount =
     subscriptions?.filter((s) => s.status === "Active").length || 0;
 
@@ -38,15 +30,19 @@ export default function SubscriptionsPage() {
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <VowenaLogo size="sm" />
-            <div className="text-xs font-mono text-muted">
-              {address.slice(0, 8)}...{address.slice(-8)}
-            </div>
+            {address && (
+              <div className="text-xs font-mono text-muted">
+                {address.slice(0, 8)}...{address.slice(-8)}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={disconnect}>
-              Disconnect
-            </Button>
+            {address && (
+              <Button variant="ghost" size="sm" onClick={disconnect}>
+                Disconnect
+              </Button>
+            )}
           </div>
         </div>
       </div>

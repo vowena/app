@@ -19,14 +19,6 @@ export default function WorkspacesPage() {
   // Placeholder Pro gate
   const isPro = false;
 
-  if (!address) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
   if (!isPro) {
     return (
       <>

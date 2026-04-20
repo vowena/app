@@ -23,7 +23,7 @@ export default function WorkspaceDashboardPage() {
   const [activeTab, setActiveTab] = useState("plans");
   const [workspace, setWorkspace] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(false);
 
   // Load workspace data
   useEffect(() => {
@@ -36,14 +36,14 @@ export default function WorkspaceDashboardPage() {
 
     // Fetch plans for this workspace
     const loadPlans = async () => {
-      setIsLoading(true);
+      setIsLoadingPlans(true);
       try {
         const plansData = await getWorkspacePlansWithData(ws.merchantAddress);
         setPlans(plansData);
       } catch (error) {
         console.error("Failed to load plans:", error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingPlans(false);
       }
     };
 
@@ -51,11 +51,7 @@ export default function WorkspaceDashboardPage() {
   }, [workspaceId, getWorkspace, router]);
 
   if (!workspace) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -98,7 +94,7 @@ export default function WorkspaceDashboardPage() {
                   <Button>New Plan</Button>
                 </div>
 
-                {isLoading ? (
+                {isLoadingPlans ? (
                   <div className="text-center py-12">
                     <p className="text-muted">Loading plans...</p>
                   </div>
