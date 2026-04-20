@@ -19,10 +19,7 @@ interface WalletContextValue {
   isInitializing: boolean;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  signTransaction: (
-    xdr: string,
-    networkPassphrase?: string,
-  ) => Promise<string>;
+  signTransaction: (xdr: string, networkPassphrase?: string) => Promise<string>;
 }
 
 export const WalletContext = createContext<WalletContextValue | null>(null);
@@ -67,12 +64,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     restore();
 
     // Listen for disconnect events from the kit
-    const unsubscribe = StellarWalletsKit.on(
-      KitEventType.DISCONNECT,
-      () => {
-        if (mounted) setAddress(null);
-      },
-    );
+    const unsubscribe = StellarWalletsKit.on(KitEventType.DISCONNECT, () => {
+      if (mounted) setAddress(null);
+    });
 
     return () => {
       mounted = false;

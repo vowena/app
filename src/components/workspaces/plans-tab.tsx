@@ -23,7 +23,12 @@ interface PlansTabProps {
 
 const TUSDC_SAC = "CARX6UEO5WL2IMHPCFURHXNRQJQ4NHSMN26SK6FNE7FN27LISLZDINFA";
 
-export function PlansTab({ workspace, plans, isLoading, onCreated }: PlansTabProps) {
+export function PlansTab({
+  workspace,
+  plans,
+  isLoading,
+  onCreated,
+}: PlansTabProps) {
   const [showForm, setShowForm] = useState(false);
 
   return (
@@ -211,9 +216,9 @@ function CreatePlanForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [submitStatus, setSubmitStatus] = useState<
-    "" | "creating" | "tagging"
-  >("");
+  const [submitStatus, setSubmitStatus] = useState<"" | "creating" | "tagging">(
+    "",
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,9 +256,7 @@ function CreatePlanForm({
       await refetch();
       onSuccess();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to create plan",
-      );
+      setError(err instanceof Error ? err.message : "Failed to create plan");
     } finally {
       setIsSubmitting(false);
       setSubmitStatus("");
@@ -335,7 +338,10 @@ function CreatePlanForm({
           />
         </Field>
 
-        <Field label="Grace (seconds)" hint="Time before pause on failed charge">
+        <Field
+          label="Grace (seconds)"
+          hint="Time before pause on failed charge"
+        >
           <Input
             type="number"
             placeholder="86400"

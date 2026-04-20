@@ -46,7 +46,7 @@ export function useSubscriptions(subscriberAddress: string | null) {
           const sub = await getSubscription(subId, subscriberAddress);
           const plan = await getPlan(sub.planId, sub.subscriber);
           return { ...sub, plan };
-        })
+        }),
       );
 
       return subscriptions;
@@ -59,7 +59,7 @@ export function useSubscriptions(subscriberAddress: string | null) {
 
 export function useSubscription(
   subId: number | null,
-  subscriberAddress: string | null
+  subscriberAddress: string | null,
 ) {
   return useQuery({
     queryKey: ["subscription", subId, subscriberAddress],

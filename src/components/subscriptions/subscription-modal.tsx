@@ -25,9 +25,9 @@ export function SubscriptionModal({
   onClose,
   onCancel,
 }: SubscriptionModalProps) {
-  const [activeTab, setActiveTab] = useState<"overview" | "history" | "details">(
-    "overview"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "history" | "details"
+  >("overview");
   const [isLoading, setIsLoading] = useState(false);
 
   // Lock body scroll when modal is open
@@ -171,16 +171,12 @@ export function SubscriptionModal({
                   />
                   <Stat
                     label="Next billing"
-                    value={
-                      nextBillingIn > 0
-                        ? nextBillingCountdown
-                        : "Due now"
-                    }
+                    value={nextBillingIn > 0 ? nextBillingCountdown : "Due now"}
                   />
                   <Stat
                     label="Created"
                     value={new Date(
-                      subscription.createdAt * 1000
+                      subscription.createdAt * 1000,
                     ).toLocaleDateString(undefined, {
                       month: "short",
                       day: "numeric",
@@ -195,7 +191,7 @@ export function SubscriptionModal({
                     <Stat
                       label="Cancelled"
                       value={new Date(
-                        subscription.cancelledAt * 1000
+                        subscription.cancelledAt * 1000,
                       ).toLocaleDateString(undefined, {
                         month: "short",
                         day: "numeric",

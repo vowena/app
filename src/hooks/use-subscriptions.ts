@@ -57,9 +57,7 @@ export function useSubscriptions(
       setSubscriptions([]);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err
-          : new Error("Failed to fetch subscriptions"),
+        err instanceof Error ? err : new Error("Failed to fetch subscriptions"),
       );
     } finally {
       setIsLoading(false);

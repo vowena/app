@@ -31,10 +31,7 @@ export async function GET(request: NextRequest) {
 
   const metadata = metadataStore.get(planId);
   if (!metadata) {
-    return NextResponse.json(
-      { error: "Metadata not found" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Metadata not found" }, { status: 404 });
   }
 
   return NextResponse.json(metadata);

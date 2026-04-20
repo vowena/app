@@ -4,10 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { RequireWallet } from "@/components/wallet/require-wallet";
-import {
-  useSubscriptions,
-  type Subscription,
-} from "@/hooks/useSubscriptions";
+import { useSubscriptions, type Subscription } from "@/hooks/useSubscriptions";
 import { SubscriptionModal } from "@/components/subscriptions/subscription-modal";
 import { TopNav } from "@/components/top-nav";
 import { Button } from "@/components/ui/button";

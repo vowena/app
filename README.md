@@ -65,12 +65,12 @@ npm run build
 
 ## Related repositories
 
-| Repository | Description |
-|---|---|
-| [protocol](https://github.com/vowena/protocol) | Soroban smart contracts |
-| [sdk](https://github.com/vowena/sdk) | TypeScript SDK |
-| [site](https://github.com/vowena/site) | Marketing site |
-| [docs](https://docs.vowena.xyz) | Product and API documentation |
+| Repository                                     | Description                   |
+| ---------------------------------------------- | ----------------------------- |
+| [protocol](https://github.com/vowena/protocol) | Soroban smart contracts       |
+| [sdk](https://github.com/vowena/sdk)           | TypeScript SDK                |
+| [site](https://github.com/vowena/site)         | Marketing site                |
+| [docs](https://docs.vowena.xyz)                | Product and API documentation |
 
 ## Contributing
 

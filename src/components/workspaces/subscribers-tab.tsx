@@ -94,7 +94,9 @@ export function SubscribersTab({ workspace, plans }: SubscribersTabProps) {
                   <Td align="right">{sub.periodsBilled}</Td>
                   <Td align="right">
                     <span className="text-xs">
-                      {new Date(sub.nextBillingTime * 1000).toLocaleDateString()}
+                      {new Date(
+                        sub.nextBillingTime * 1000,
+                      ).toLocaleDateString()}
                     </span>
                   </Td>
                   <Td align="right">

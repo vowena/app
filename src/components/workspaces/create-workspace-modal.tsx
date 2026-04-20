@@ -150,7 +150,10 @@ export function CreateWorkspaceModal({
                 />
                 {trimmed && slug && !hasCollision && (
                   <p className="text-[10px] text-muted mt-1.5">
-                    URL: <span className="font-mono text-secondary">/workspaces/{slug}</span>
+                    URL:{" "}
+                    <span className="font-mono text-secondary">
+                      /workspaces/{slug}
+                    </span>
                   </p>
                 )}
                 {hasCollision && (

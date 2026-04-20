@@ -112,9 +112,7 @@ export function useWorkspaces() {
       // Optimistic: append planId to that workspace
       queryClient.setQueryData<WorkspaceConfig[]>(queryKey, (old = []) =>
         old.map((w) =>
-          w.slot === slot
-            ? { ...w, planIds: [...w.planIds, planId] }
-            : w,
+          w.slot === slot ? { ...w, planIds: [...w.planIds, planId] } : w,
         ),
       );
 

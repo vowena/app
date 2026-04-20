@@ -6,10 +6,7 @@ import { client, CONTRACT } from "@/lib/chain";
 
 const server = new SorobanRpc.Server(CONTRACT.RPC_URL);
 
-async function signAndSubmit(params: {
-  xdr: string;
-  sourceAddress: string;
-}) {
+async function signAndSubmit(params: { xdr: string; sourceAddress: string }) {
   const { signedTxXdr } = await StellarWalletsKit.signTransaction(params.xdr, {
     networkPassphrase: CONTRACT.PASSPHRASE,
     address: params.sourceAddress,

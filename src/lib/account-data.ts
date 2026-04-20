@@ -238,7 +238,9 @@ export async function buildDeleteWorkspaceTx(
 /**
  * Submit a signed tx to Horizon and wait for inclusion.
  */
-export async function submitToHorizon(signedXdr: string): Promise<{ hash: string }> {
+export async function submitToHorizon(
+  signedXdr: string,
+): Promise<{ hash: string }> {
   const res = await fetch(`${HORIZON_URL}/transactions`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

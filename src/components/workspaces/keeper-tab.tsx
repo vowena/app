@@ -83,16 +83,17 @@ export function KeeperTab({ workspace }: KeeperTabProps) {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KeeperStat label="Last run" value="Never" />
-        <KeeperStat label="Next run" value={autoBillingEnabled ? "in 5 min" : "—"} />
+        <KeeperStat
+          label="Next run"
+          value={autoBillingEnabled ? "in 5 min" : "—"}
+        />
         <KeeperStat label="Subs charged today" value="0" />
       </div>
 
       {/* Activity log */}
       <div className="rounded-xl border border-border bg-elevated overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">
-            Recent runs
-          </h3>
+          <h3 className="text-sm font-semibold text-foreground">Recent runs</h3>
         </div>
         <div className="px-6 py-12 text-center">
           <p className="text-sm text-muted">No runs yet</p>

@@ -57,8 +57,9 @@ const vowena = new VowenaClient({
         >
           <CodeBlock
             language="ts"
-            code={plans.length > 0
-              ? `// Build a subscribe XDR for plan #${plans[0].id}
+            code={
+              plans.length > 0
+                ? `// Build a subscribe XDR for plan #${plans[0].id}
 const xdr = await vowena.buildSubscribe({
   subscriber: userAddress,
   planId: ${plans[0].id},
@@ -69,13 +70,14 @@ const xdr = await vowena.buildSubscribe({
 // Sign with user's wallet, then submit
 const signedXdr = await wallet.signTransaction(xdr);
 await vowena.submit(signedXdr);`
-              : `// Create a plan first to see your plan ID here
+                : `// Create a plan first to see your plan ID here
 const xdr = await vowena.buildSubscribe({
   subscriber: userAddress,
   planId: YOUR_PLAN_ID,
   expirationLedger: currentLedger + 2_900_000,
   allowancePeriods: 12,
-});`}
+});`
+            }
           />
         </Step>
       </div>
@@ -184,9 +186,7 @@ function PlanReferenceRow({ plan }: { plan: any }) {
   return (
     <div className="px-6 py-4 border-b border-border-subtle last:border-0 flex items-center justify-between gap-4">
       <div>
-        <p className="text-sm font-medium text-foreground">
-          Plan #{plan.id}
-        </p>
+        <p className="text-sm font-medium text-foreground">Plan #{plan.id}</p>
         <p className="text-xs text-muted mt-0.5">
           {amount} USDC every {plan.period}s
         </p>

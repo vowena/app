@@ -3,7 +3,12 @@
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
-type ButtonVariant = "primary" | "secondary" | "destructive" | "ghost" | "outline";
+type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "destructive"
+  | "ghost"
+  | "outline";
 type ButtonSize = "sm" | "default" | "lg";
 
 const variantStyles: Record<ButtonVariant, string> = {
@@ -13,8 +18,7 @@ const variantStyles: Record<ButtonVariant, string> = {
     "bg-surface text-secondary border border-border hover:bg-accent-subtle hover:text-accent",
   destructive:
     "bg-error/10 text-error border border-error/20 hover:bg-error/20",
-  ghost:
-    "bg-transparent text-secondary hover:bg-surface hover:text-foreground",
+  ghost: "bg-transparent text-secondary hover:bg-surface hover:text-foreground",
   outline:
     "border border-border bg-transparent text-secondary hover:bg-surface hover:text-foreground",
 };
@@ -31,7 +35,10 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", size = "default", disabled, ...props }, ref) => {
+  (
+    { className, variant = "primary", size = "default", disabled, ...props },
+    ref,
+  ) => {
     return (
       <button
         ref={ref}

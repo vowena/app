@@ -42,7 +42,7 @@ export const indexedEvents = pgTable(
     index("idx_events_plan").on(table.planId),
     index("idx_events_type").on(table.eventType),
     index("idx_events_ledger").on(table.ledger),
-  ]
+  ],
 );
 
 export const keeperConfig = pgTable("keeper_config", {

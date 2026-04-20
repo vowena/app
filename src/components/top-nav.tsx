@@ -88,9 +88,7 @@ export function TopNav({ active }: TopNavProps) {
                 <span className="hidden sm:inline">
                   {address.slice(0, 4)}…{address.slice(-4)}
                 </span>
-                <span className="sm:hidden">
-                  {address.slice(0, 3)}…
-                </span>
+                <span className="sm:hidden">{address.slice(0, 3)}…</span>
               </button>
 
               {walletMenuOpen && (

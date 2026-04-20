@@ -45,8 +45,7 @@ export default function CheckoutPage() {
         // We need any valid Stellar address as caller for the read.
         // If user is connected, use theirs; otherwise use a known address.
         const caller =
-          address ||
-          "GAGRLI6F336OEJF627UNHBOPXI6VDQ75DRMSWSX2FQ25F3RFVWJOIIQU";
+          address || "GAGRLI6F336OEJF627UNHBOPXI6VDQ75DRMSWSX2FQ25F3RFVWJOIIQU";
         const p = await getPlan(planId, caller);
         if (!cancelled) setPlan(p);
       } catch (err) {
@@ -264,8 +263,8 @@ function CheckoutBody({
               total cap
             </>
           )}
-          . The merchant cannot charge more than this. Cancel any time from
-          your Vowena dashboard.
+          . The merchant cannot charge more than this. Cancel any time from your
+          Vowena dashboard.
         </p>
       </div>
 
