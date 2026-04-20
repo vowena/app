@@ -3,6 +3,7 @@ import { DM_Sans, Space_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/components/wallet/wallet-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { QueryClientProvider } from "@/components/query-client-provider";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -45,7 +46,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground antialiased">
         <ThemeProvider>
-          <WalletProvider>{children}</WalletProvider>
+          <QueryClientProvider>
+            <WalletProvider>{children}</WalletProvider>
+          </QueryClientProvider>
         </ThemeProvider>
       </body>
     </html>
