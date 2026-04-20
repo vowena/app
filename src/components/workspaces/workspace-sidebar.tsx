@@ -57,9 +57,9 @@ export function WorkspaceSidebar({
 
   return (
     <>
-      {/* Mobile: horizontal tab bar (appears above content) */}
-      <div className="lg:hidden border-b border-border bg-elevated/40 sticky top-14 z-30">
-        <div className="px-5 py-3 flex items-center gap-3 border-b border-border-subtle">
+      {/* Mobile: horizontal tab bar */}
+      <div className="lg:hidden border-b border-border bg-elevated/40">
+        <div className="px-5 py-4 flex items-center gap-3 border-b border-border-subtle">
           <div className="w-8 h-8 shrink-0 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-xs">
             {workspace.name.slice(0, 2).toUpperCase()}
           </div>
@@ -91,13 +91,13 @@ export function WorkspaceSidebar({
         </nav>
       </div>
 
-      {/* Desktop: flush-left vertical sidebar */}
+      {/* Desktop: vertical sidebar */}
       <aside
         className={`hidden lg:flex ${
-          isCollapsed ? "w-[72px]" : "w-64"
-        } shrink-0 border-r border-border bg-surface/30 flex-col transition-[width] duration-200 sticky top-14 self-start h-[calc(100vh-56px)]`}
+          isCollapsed ? "w-16" : "w-60"
+        } shrink-0 border-r border-border bg-elevated/40 flex-col transition-[width] duration-200`}
       >
-        <div className="px-5 py-6 border-b border-border-subtle">
+        <div className="px-4 py-5 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 shrink-0 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-sm">
               {workspace.name.slice(0, 2).toUpperCase()}
@@ -137,7 +137,7 @@ export function WorkspaceSidebar({
           })}
         </nav>
 
-        <div className="border-t border-border-subtle p-3 space-y-1">
+        <div className="border-t border-border p-3 space-y-1">
           <Link
             href={`https://stellar.expert/explorer/testnet/account/${workspace.merchantAddress}`}
             target="_blank"
