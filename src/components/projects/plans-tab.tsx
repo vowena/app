@@ -12,10 +12,10 @@ import {
   ExternalLinkIcon,
 } from "@/components/ui/icons";
 import { createPlan } from "@/lib/contract";
-import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useProjects } from "@/hooks/useProjects";
 
 interface PlansTabProps {
-  workspace: any;
+  project: any;
   plans: any[];
   isLoading: boolean;
   onCreated?: () => void;
@@ -24,7 +24,7 @@ interface PlansTabProps {
 const TUSDC_SAC = "CARX6UEO5WL2IMHPCFURHXNRQJQ4NHSMN26SK6FNE7FN27LISLZDINFA";
 
 export function PlansTab({
-  workspace,
+  project,
   plans,
   isLoading,
   onCreated,
@@ -58,8 +58,8 @@ export function PlansTab({
 
       {showForm && (
         <CreatePlanForm
-          merchantAddress={workspace.merchantAddress}
-          workspaceSlot={workspace.slot}
+          merchantAddress={project.merchantAddress}
+          projectSlot={project.slot}
           onClose={() => setShowForm(false)}
           onSuccess={() => {
             setShowForm(false);
@@ -196,16 +196,16 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function CreatePlanForm({
   merchantAddress,
-  workspaceSlot,
+  projectSlot,
   onClose,
   onSuccess,
 }: {
   merchantAddress: string;
-  workspaceSlot: number;
+  projectSlot: number;
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const { tagPlanToWorkspace, refetch } = useWorkspaces();
+  const { tagPlanToProject, refetch } = useProjects();
   const [token, setToken] = useState(TUSDC_SAC);
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState("2592000");
@@ -241,15 +241,15 @@ function CreatePlanForm({
         priceCeilingUsdc: ceiling,
       });
 
-      // Step 2: extract plan ID and tag it to the workspace
+      // Step 2: extract plan ID and tag it to the project
       const planId = extractPlanId(result);
       if (planId != null) {
         setSubmitStatus("tagging");
         try {
-          await tagPlanToWorkspace(planId, workspaceSlot);
+          await tagPlanToProject(planId, projectSlot);
         } catch (tagErr) {
           console.error("Plan created but tagging failed:", tagErr);
-          // Non-fatal — plan exists on chain, just not tagged to this workspace
+          // Non-fatal — plan exists on chain, just not tagged to this project
         }
       }
 
@@ -387,7 +387,7 @@ function CreatePlanForm({
           {submitStatus === "creating"
             ? "Creating plan on chain…"
             : submitStatus === "tagging"
-              ? "Saving to workspace…"
+              ? "Saving to project…"
               : isSubmitting
                 ? "Signing…"
                 : "Create plan"}

@@ -6,33 +6,33 @@ import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit/sdk";
 import { Networks } from "@creit.tech/stellar-wallets-kit";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import {
-  readWorkspaces,
-  buildCreateWorkspaceTx,
+  readProjects,
+  buildCreateProjectTx,
   buildTagPlanTx,
-  buildDeleteWorkspaceTx,
+  buildDeleteProjectTx,
   submitToHorizon,
-  type OnChainWorkspace,
+  type OnChainProject,
 } from "@/lib/account-data";
 import { getPlan } from "@/lib/chain";
 
-export type WorkspaceConfig = OnChainWorkspace & {
+export type ProjectConfig = OnChainProject & {
   /** Alias kept for back-compat; equals slugified name */
   id: string;
 };
 
 export type CreateStatus = "preparing" | "signing" | "submitting" | "done";
 
-export function useWorkspaces() {
+export function useProjects() {
   const { address } = useWallet();
   const queryClient = useQueryClient();
 
-  const queryKey = ["workspaces", address];
+  const queryKey = ["projects", address];
 
   const query = useQuery({
     queryKey,
-    queryFn: async (): Promise<WorkspaceConfig[]> => {
+    queryFn: async (): Promise<ProjectConfig[]> => {
       if (!address) return [];
-      const raw = await readWorkspaces(address);
+      const raw = await readProjects(address);
       return raw.map((w) => ({ ...w, id: String(w.slot) }));
     },
     enabled: !!address,
@@ -41,22 +41,22 @@ export function useWorkspaces() {
   });
 
   /**
-   * Create a workspace on-chain. Onstatus callback gets fired with stages so
-   * the UI can show granular progress. After submission, the new workspace is
+   * Create a project on-chain. Onstatus callback gets fired with stages so
+   * the UI can show granular progress. After submission, the new project is
    * optimistically inserted into the cache so the UI reflects it immediately
    * (a background refetch follows to confirm).
    */
-  const createWorkspace = useCallback(
+  const createProject = useCallback(
     async (
       name: string,
       description: string | undefined,
       onStatus?: (s: CreateStatus) => void,
-    ): Promise<WorkspaceConfig> => {
+    ): Promise<ProjectConfig> => {
       if (!address) throw new Error("Wallet not connected");
 
       onStatus?.("preparing");
-      const cached = (query.data || []) as OnChainWorkspace[];
-      const { xdr, slot } = await buildCreateWorkspaceTx(
+      const cached = (query.data || []) as OnChainProject[];
+      const { xdr, slot } = await buildCreateProjectTx(
         address,
         name,
         description,
@@ -72,7 +72,7 @@ export function useWorkspaces() {
       onStatus?.("submitting");
       await submitToHorizon(signedTxXdr);
 
-      const newWorkspace: WorkspaceConfig = {
+      const newProject: ProjectConfig = {
         slot,
         id: String(slot),
         name,
@@ -81,9 +81,9 @@ export function useWorkspaces() {
         merchantAddress: address,
       };
 
-      // Optimistic update — UI sees the new workspace instantly
-      queryClient.setQueryData<WorkspaceConfig[]>(queryKey, (old = []) => {
-        const next = [...old, newWorkspace].sort((a, b) => a.slot - b.slot);
+      // Optimistic update — UI sees the new project instantly
+      queryClient.setQueryData<ProjectConfig[]>(queryKey, (old = []) => {
+        const next = [...old, newProject].sort((a, b) => a.slot - b.slot);
         return next;
       });
 
@@ -93,12 +93,12 @@ export function useWorkspaces() {
       }, 2000);
 
       onStatus?.("done");
-      return newWorkspace;
+      return newProject;
     },
     [address, queryClient, query.data, queryKey],
   );
 
-  const tagPlanToWorkspace = useCallback(
+  const tagPlanToProject = useCallback(
     async (planId: number, slot: number): Promise<void> => {
       if (!address) throw new Error("Wallet not connected");
 
@@ -109,8 +109,8 @@ export function useWorkspaces() {
       });
       await submitToHorizon(signedTxXdr);
 
-      // Optimistic: append planId to that workspace
-      queryClient.setQueryData<WorkspaceConfig[]>(queryKey, (old = []) =>
+      // Optimistic: append planId to that project
+      queryClient.setQueryData<ProjectConfig[]>(queryKey, (old = []) =>
         old.map((w) =>
           w.slot === slot ? { ...w, planIds: [...w.planIds, planId] } : w,
         ),
@@ -123,18 +123,18 @@ export function useWorkspaces() {
     [address, queryClient, queryKey],
   );
 
-  const deleteWorkspace = useCallback(
+  const deleteProject = useCallback(
     async (slot: number): Promise<void> => {
       if (!address) throw new Error("Wallet not connected");
 
-      const xdr = await buildDeleteWorkspaceTx(address, slot);
+      const xdr = await buildDeleteProjectTx(address, slot);
       const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {
         networkPassphrase: Networks.TESTNET,
         address,
       });
       await submitToHorizon(signedTxXdr);
 
-      queryClient.setQueryData<WorkspaceConfig[]>(queryKey, (old = []) =>
+      queryClient.setQueryData<ProjectConfig[]>(queryKey, (old = []) =>
         old.filter((w) => w.slot !== slot),
       );
 
@@ -146,20 +146,20 @@ export function useWorkspaces() {
   );
 
   return {
-    workspaces: query.data || [],
+    projects: query.data || [],
     isLoading: query.isLoading,
     error: query.error,
-    createWorkspace,
-    tagPlanToWorkspace,
-    deleteWorkspace,
+    createProject,
+    tagPlanToProject,
+    deleteProject,
     refetch: query.refetch,
   };
 }
 
 /**
- * Fetch all plans for a workspace from the Vowena contract.
+ * Fetch all plans for a project from the Vowena contract.
  */
-export async function getWorkspacePlansWithData(
+export async function getProjectPlansWithData(
   merchantAddress: string,
   planIds?: number[],
 ) {
@@ -172,7 +172,7 @@ export async function getWorkspacePlansWithData(
     );
     return plans.filter((p): p is NonNullable<typeof p> => p !== null);
   } catch (error) {
-    console.error("Failed to fetch workspace plans:", error);
+    console.error("Failed to fetch project plans:", error);
     return [];
   }
 }

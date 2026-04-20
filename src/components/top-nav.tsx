@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/icons";
 
 interface TopNavProps {
-  active?: "subscriptions" | "workspaces";
+  active?: "subscriptions" | "projects";
 }
 
 export function TopNav({ active }: TopNavProps) {
@@ -62,14 +62,14 @@ export function TopNav({ active }: TopNavProps) {
               Subscriptions
             </Link>
             <Link
-              href="/workspaces"
+              href="/projects"
               className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                active === "workspaces"
+                active === "projects"
                   ? "text-foreground bg-surface"
                   : "text-muted hover:text-foreground hover:bg-surface/50"
               }`}
             >
-              Workspaces
+              Projects
             </Link>
           </nav>
         </div>

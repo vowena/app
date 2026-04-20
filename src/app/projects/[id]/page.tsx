@@ -5,79 +5,79 @@ import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { RequireWallet } from "@/components/wallet/require-wallet";
 import {
-  useWorkspaces,
-  getWorkspacePlansWithData,
-  type WorkspaceConfig,
-} from "@/hooks/useWorkspaces";
+  useProjects,
+  getProjectPlansWithData,
+  type ProjectConfig,
+} from "@/hooks/useProjects";
 import { usePro } from "@/hooks/usePro";
-import { findWorkspaceByUrlParam, workspaceUrl } from "@/lib/workspace-slug";
-import { WorkspaceSidebar } from "@/components/workspaces/workspace-sidebar";
+import { findProjectByUrlParam, projectUrl } from "@/lib/project-slug";
+import { ProjectSidebar } from "@/components/projects/project-sidebar";
 import { TopNav } from "@/components/top-nav";
-import { PlansTab } from "@/components/workspaces/plans-tab";
-import { SubscribersTab } from "@/components/workspaces/subscribers-tab";
-import { BillingTab } from "@/components/workspaces/billing-tab";
-import { KeeperTab } from "@/components/workspaces/keeper-tab";
-import { IntegrateTab } from "@/components/workspaces/integrate-tab";
+import { PlansTab } from "@/components/projects/plans-tab";
+import { SubscribersTab } from "@/components/projects/subscribers-tab";
+import { BillingTab } from "@/components/projects/billing-tab";
+import { KeeperTab } from "@/components/projects/keeper-tab";
+import { IntegrateTab } from "@/components/projects/integrate-tab";
 import { ChevronLeftIcon } from "@/components/ui/icons";
 
-export default function WorkspaceDashboardPage() {
+export default function ProjectDashboardPage() {
   return (
     <RequireWallet>
-      <WorkspaceDashboardView />
+      <ProjectDashboardView />
     </RequireWallet>
   );
 }
 
-function WorkspaceDashboardView() {
+function ProjectDashboardView() {
   const router = useRouter();
   const params = useParams();
   const urlParam = params.id as string;
 
   const { isPro, isLoading: isProLoading } = usePro();
-  const { workspaces, isLoading: isWsLoading } = useWorkspaces();
+  const { projects, isLoading: isWsLoading } = useProjects();
   const [activeTab, setActiveTab] = useState("plans");
   const [plans, setPlans] = useState<
-    Awaited<ReturnType<typeof getWorkspacePlansWithData>>
+    Awaited<ReturnType<typeof getProjectPlansWithData>>
   >([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const workspace: WorkspaceConfig | undefined = findWorkspaceByUrlParam(
-    workspaces,
+  const project: ProjectConfig | undefined = findProjectByUrlParam(
+    projects,
     urlParam,
   );
 
-  // If user landed on a legacy /workspaces/0 URL, redirect to the slug version
+  // If user landed on a legacy /projects/0 URL, redirect to the slug version
   useEffect(() => {
-    if (workspace && urlParam !== workspaceUrl(workspace).split("/").pop()) {
-      router.replace(workspaceUrl(workspace));
+    if (project && urlParam !== projectUrl(project).split("/").pop()) {
+      router.replace(projectUrl(project));
     }
-  }, [workspace, urlParam, router]);
+  }, [project, urlParam, router]);
 
   // Pro gate
   useEffect(() => {
     if (!isProLoading && !isPro) {
-      router.replace("/workspaces");
+      router.replace("/projects");
     }
   }, [isPro, isProLoading, router]);
 
-  // Workspace not found after chain read completes → bounce to list
+  // Project not found after chain read completes → bounce to list
   useEffect(() => {
-    if (!isWsLoading && !workspace) {
-      router.replace("/workspaces");
+    if (!isWsLoading && !project) {
+      router.replace("/projects");
     }
-  }, [isWsLoading, workspace, router]);
+  }, [isWsLoading, project, router]);
 
-  // Load plans tagged to this workspace from chain
+  // Load plans tagged to this project from chain
   useEffect(() => {
-    if (!workspace) return;
+    if (!project) return;
     let cancelled = false;
     const load = async () => {
       setIsLoadingPlans(true);
       try {
-        const data = await getWorkspacePlansWithData(
-          workspace.merchantAddress,
-          workspace.planIds,
+        const data = await getProjectPlansWithData(
+          project.merchantAddress,
+          project.planIds,
         );
         if (!cancelled) setPlans(data);
       } catch (e) {
@@ -90,15 +90,15 @@ function WorkspaceDashboardView() {
     return () => {
       cancelled = true;
     };
-  }, [workspace, refreshKey]);
+  }, [project, refreshKey]);
 
   const refreshPlans = () => setRefreshKey((k) => k + 1);
 
-  // Loading skeleton while resolving workspace + pro status
-  if (isWsLoading || isProLoading || !workspace || !isPro) {
+  // Loading skeleton while resolving project + pro status
+  if (isWsLoading || isProLoading || !project || !isPro) {
     return (
       <>
-        <TopNav active="workspaces" />
+        <TopNav active="projects" />
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12">
           <div className="rounded-2xl border border-border bg-elevated/40 min-h-[calc(100vh-200px)] flex items-center justify-center">
             <div className="w-6 h-6 rounded-full border-2 border-border border-t-accent animate-spin" />
@@ -110,22 +110,22 @@ function WorkspaceDashboardView() {
 
   return (
     <>
-      <TopNav active="workspaces" />
+      <TopNav active="projects" />
 
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <Link
-          href="/workspaces"
+          href="/projects"
           className="text-xs text-muted hover:text-foreground transition-colors inline-flex items-center gap-1 mb-4"
         >
           <ChevronLeftIcon size={12} />
-          Workspaces
+          Projects
         </Link>
       </div>
 
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <div className="rounded-2xl border border-border bg-elevated/40 overflow-hidden flex flex-col lg:flex-row min-h-[calc(100vh-200px)]">
-          <WorkspaceSidebar
-            workspace={workspace}
+          <ProjectSidebar
+            project={project}
             activeTab={activeTab}
             onTabChange={setActiveTab}
           />
@@ -134,21 +134,21 @@ function WorkspaceDashboardView() {
             <div className="p-5 sm:p-8 lg:p-10">
               {activeTab === "plans" && (
                 <PlansTab
-                  workspace={workspace}
+                  project={project}
                   plans={plans}
                   isLoading={isLoadingPlans}
                   onCreated={refreshPlans}
                 />
               )}
               {activeTab === "subscribers" && (
-                <SubscribersTab workspace={workspace} plans={plans} />
+                <SubscribersTab project={project} plans={plans} />
               )}
               {activeTab === "billing" && (
-                <BillingTab workspace={workspace} plans={plans} />
+                <BillingTab project={project} plans={plans} />
               )}
-              {activeTab === "keeper" && <KeeperTab workspace={workspace} />}
+              {activeTab === "keeper" && <KeeperTab project={project} />}
               {activeTab === "integrate" && (
-                <IntegrateTab workspace={workspace} plans={plans} />
+                <IntegrateTab project={project} plans={plans} />
               )}
             </div>
           </main>

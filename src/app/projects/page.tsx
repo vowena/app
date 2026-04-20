@@ -5,32 +5,32 @@ import { useRouter } from "next/navigation";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { RequireWallet } from "@/components/wallet/require-wallet";
 import { usePro } from "@/hooks/usePro";
-import { useWorkspaces } from "@/hooks/useWorkspaces";
-import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-modal";
+import { useProjects } from "@/hooks/useProjects";
+import { CreateProjectModal } from "@/components/projects/create-project-modal";
 import { TopNav } from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
 import { PlusIcon, ArrowRightIcon, CheckIcon } from "@/components/ui/icons";
-import { workspaceUrl, slugCollides } from "@/lib/workspace-slug";
+import { projectUrl, slugCollides } from "@/lib/project-slug";
 
-export default function WorkspacesPage() {
+export default function ProjectsPage() {
   return (
     <RequireWallet>
-      <WorkspacesView />
+      <ProjectsView />
     </RequireWallet>
   );
 }
 
-function WorkspacesView() {
+function ProjectsView() {
   const { address } = useWallet();
   const router = useRouter();
   const { isPro, activate } = usePro();
-  const { workspaces, isLoading, createWorkspace } = useWorkspaces();
+  const { projects, isLoading, createProject } = useProjects();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   if (!isPro) {
     return (
       <>
-        <TopNav active="workspaces" />
+        <TopNav active="projects" />
         <UpgradeView onActivate={activate} />
       </>
     );
@@ -38,14 +38,14 @@ function WorkspacesView() {
 
   return (
     <>
-      <TopNav active="workspaces" />
+      <TopNav active="projects" />
 
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         {/* Header */}
         <div className="mb-12 sm:mb-16 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
           <div className="space-y-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
-              Workspaces
+              Projects
             </p>
             <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-semibold text-foreground tracking-tight leading-[1.1]">
               Your{" "}
@@ -56,37 +56,37 @@ function WorkspacesView() {
             <p className="text-secondary text-sm max-w-md">
               {isLoading
                 ? "Reading from Stellar…"
-                : workspaces.length === 0
-                  ? "Create a workspace for each product or service you charge for."
-                  : `${workspaces.length} workspace${workspaces.length !== 1 ? "s" : ""} on Stellar.`}
+                : projects.length === 0
+                  ? "Create a project for each product or service you charge for."
+                  : `${projects.length} project${projects.length !== 1 ? "s" : ""} on Stellar.`}
             </p>
           </div>
-          {!isLoading && workspaces.length > 0 && (
+          {!isLoading && projects.length > 0 && (
             <Button
               onClick={() => setShowCreateModal(true)}
               className="gap-2 shrink-0 self-start sm:self-end"
             >
               <PlusIcon size={14} />
-              New workspace
+              New project
             </Button>
           )}
         </div>
 
         {isLoading ? (
-          <WorkspacesSkeleton />
-        ) : workspaces.length === 0 ? (
+          <ProjectsSkeleton />
+        ) : projects.length === 0 ? (
           <EmptyState onCreate={() => setShowCreateModal(true)} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            {workspaces.map((workspace) => (
+            {projects.map((project) => (
               <button
-                key={workspace.id}
-                onClick={() => router.push(workspaceUrl(workspace))}
+                key={project.id}
+                onClick={() => router.push(projectUrl(project))}
                 className="text-left rounded-xl border border-border bg-elevated hover:border-accent/40 transition-all duration-200 p-6 sm:p-7 group"
               >
                 <div className="flex items-start justify-between mb-5">
                   <div className="w-10 h-10 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-sm">
-                    {workspace.name.slice(0, 2).toUpperCase()}
+                    {project.name.slice(0, 2).toUpperCase()}
                   </div>
                   <ArrowRightIcon
                     size={16}
@@ -94,21 +94,21 @@ function WorkspacesView() {
                   />
                 </div>
                 <h3 className="text-base font-semibold text-foreground group-hover:text-accent transition-colors mb-2 truncate">
-                  {workspace.name}
+                  {project.name}
                 </h3>
-                {workspace.description && (
+                {project.description && (
                   <p className="text-sm text-secondary mb-4 line-clamp-2 leading-relaxed">
-                    {workspace.description}
+                    {project.description}
                   </p>
                 )}
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <p className="font-mono text-muted truncate">
-                    {workspace.merchantAddress.slice(0, 6)}…
-                    {workspace.merchantAddress.slice(-6)}
+                    {project.merchantAddress.slice(0, 6)}…
+                    {project.merchantAddress.slice(-6)}
                   </p>
                   <span className="text-muted shrink-0">
-                    {workspace.planIds.length} plan
-                    {workspace.planIds.length !== 1 ? "s" : ""}
+                    {project.planIds.length} plan
+                    {project.planIds.length !== 1 ? "s" : ""}
                   </span>
                 </div>
               </button>
@@ -117,19 +117,19 @@ function WorkspacesView() {
         )}
       </div>
 
-      <CreateWorkspaceModal
+      <CreateProjectModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        existingNames={workspaces.map((w) => w.name)}
-        onCreateWorkspace={async (name, description, onStatus) => {
-          if (slugCollides(workspaces, name)) {
+        existingNames={projects.map((w) => w.name)}
+        onCreateProject={async (name, description, onStatus) => {
+          if (slugCollides(projects, name)) {
             throw new Error(
-              "A workspace with this name already exists. Choose another.",
+              "A project with this name already exists. Choose another.",
             );
           }
-          const ws = await createWorkspace(name, description, onStatus);
+          const ws = await createProject(name, description, onStatus);
           setShowCreateModal(false);
-          router.push(workspaceUrl(ws));
+          router.push(projectUrl(ws));
         }}
         defaultAddress={address || ""}
       />
@@ -170,7 +170,7 @@ function UpgradeView({ onActivate }: { onActivate: () => void }) {
           </h1>
 
           <p className="text-base sm:text-lg text-secondary leading-relaxed mb-10">
-            Workspaces give you everything you need to accept recurring
+            Projects give you everything you need to accept recurring
             payments. Create plans, share checkout links, and integrate in
             minutes.
           </p>
@@ -194,7 +194,7 @@ function UpgradeView({ onActivate }: { onActivate: () => void }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 max-w-3xl mx-auto mt-20 sm:mt-24">
           {[
             {
-              title: "Unlimited workspaces",
+              title: "Unlimited projects",
               description:
                 "Stored natively on your Stellar account. Cross-device by default.",
             },
@@ -234,21 +234,21 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="rounded-2xl border border-border border-dashed bg-surface/50 p-10 sm:p-16 text-center">
       <h3 className="text-xl font-semibold text-foreground mb-2 tracking-tight">
-        No workspaces yet
+        No projects yet
       </h3>
       <p className="text-secondary text-sm mb-8 max-w-sm mx-auto leading-relaxed">
-        Create your first workspace to start accepting recurring payments for
+        Create your first project to start accepting recurring payments for
         your product.
       </p>
       <Button onClick={onCreate} className="gap-2">
         <PlusIcon size={14} />
-        Create workspace
+        Create project
       </Button>
     </div>
   );
 }
 
-function WorkspacesSkeleton() {
+function ProjectsSkeleton() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
       {[1, 2, 3].map((i) => (

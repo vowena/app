@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { CircleDotIcon } from "@/components/ui/icons";
 
 interface KeeperTabProps {
-  workspace: any;
+  project: any;
 }
 
-export function KeeperTab({ workspace }: KeeperTabProps) {
+export function KeeperTab({ project }: KeeperTabProps) {
   const [autoBillingEnabled, setAutoBillingEnabled] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 

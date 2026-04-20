@@ -4,11 +4,11 @@ import { useState } from "react";
 import { CopyIcon, CheckIcon } from "@/components/ui/icons";
 
 interface IntegrateTabProps {
-  workspace: any;
+  project: any;
   plans: any[];
 }
 
-export function IntegrateTab({ workspace, plans }: IntegrateTabProps) {
+export function IntegrateTab({ project, plans }: IntegrateTabProps) {
   return (
     <div>
       <div className="mb-8">

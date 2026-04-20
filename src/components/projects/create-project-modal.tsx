@@ -4,16 +4,16 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CloseIcon, AlertTriangleIcon } from "@/components/ui/icons";
-import { slugify, slugCollides } from "@/lib/workspace-slug";
-import type { CreateStatus } from "@/hooks/useWorkspaces";
+import { slugify, slugCollides } from "@/lib/project-slug";
+import type { CreateStatus } from "@/hooks/useProjects";
 
-interface CreateWorkspaceModalProps {
+interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Pass workspace names so the modal can warn about duplicate slugs inline */
+  /** Pass project names so the modal can warn about duplicate slugs inline */
   existingNames?: string[];
   /** Receives status updates so we can show 'Signing…', 'Submitting…', etc. */
-  onCreateWorkspace: (
+  onCreateProject: (
     name: string,
     description: string | undefined,
     onStatus?: (s: CreateStatus) => void,
@@ -28,13 +28,13 @@ const STATUS_LABEL: Record<CreateStatus, string> = {
   done: "Done",
 };
 
-export function CreateWorkspaceModal({
+export function CreateProjectModal({
   isOpen,
   onClose,
   existingNames = [],
-  onCreateWorkspace,
+  onCreateProject,
   defaultAddress,
-}: CreateWorkspaceModalProps) {
+}: CreateProjectModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,12 +90,12 @@ export function CreateWorkspaceModal({
     setError(null);
     setIsSubmitting(true);
     try {
-      await onCreateWorkspace(trimmed, description.trim() || undefined, (s) =>
+      await onCreateProject(trimmed, description.trim() || undefined, (s) =>
         setStatus(s),
       );
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to create workspace",
+        err instanceof Error ? err.message : "Failed to create project",
       );
       setIsSubmitting(false);
       setStatus(null);
@@ -118,7 +118,7 @@ export function CreateWorkspaceModal({
             <div className="px-6 sm:px-8 pt-6 sm:pt-8 pb-6 flex items-start justify-between border-b border-border-subtle">
               <div>
                 <h2 className="text-xl font-semibold text-foreground tracking-tight">
-                  Create workspace
+                  Create project
                 </h2>
                 <p className="text-sm text-secondary mt-1.5">
                   Set up a new project to accept recurring payments.
@@ -138,7 +138,7 @@ export function CreateWorkspaceModal({
             <div className="px-6 sm:px-8 py-6 space-y-6">
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-2">
-                  Workspace name
+                  Project name
                 </label>
                 <Input
                   placeholder="My SaaS"
@@ -152,13 +152,13 @@ export function CreateWorkspaceModal({
                   <p className="text-[10px] text-muted mt-1.5">
                     URL:{" "}
                     <span className="font-mono text-secondary">
-                      /workspaces/{slug}
+                      /projects/{slug}
                     </span>
                   </p>
                 )}
                 {hasCollision && (
                   <p className="text-[10px] text-error mt-1.5">
-                    A workspace with this name already exists.
+                    A project with this name already exists.
                   </p>
                 )}
               </div>
@@ -190,7 +190,7 @@ export function CreateWorkspaceModal({
                   </p>
                 </div>
                 <p className="text-[10px] text-muted mt-1">
-                  Payments for this workspace go to your connected wallet.
+                  Payments for this project go to your connected wallet.
                 </p>
               </div>
 
@@ -233,7 +233,7 @@ export function CreateWorkspaceModal({
                 Cancel
               </Button>
               <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                {isSubmitting ? "Creating…" : "Create workspace"}
+                {isSubmitting ? "Creating…" : "Create project"}
               </Button>
             </div>
           </form>

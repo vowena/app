@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { WorkspaceConfig } from "@/hooks/useWorkspaces";
+import { ProjectConfig } from "@/hooks/useProjects";
 import {
   PlanIcon,
   SubscribersIcon,
@@ -14,8 +14,8 @@ import {
   ExternalLinkIcon,
 } from "@/components/ui/icons";
 
-interface WorkspaceSidebarProps {
-  workspace: WorkspaceConfig;
+interface ProjectSidebarProps {
+  project: ProjectConfig;
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
@@ -28,28 +28,28 @@ const TABS = [
   { id: "integrate", label: "Integrate", Icon: IntegrateIcon },
 ];
 
-export function WorkspaceSidebar({
-  workspace,
+export function ProjectSidebar({
+  project,
   activeTab,
   onTabChange,
-}: WorkspaceSidebarProps) {
+}: ProjectSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(
-        `vowena:workspace:${workspace.id}:sidebar-collapsed`,
+        `vowena:project:${project.id}:sidebar-collapsed`,
       );
       if (saved) setIsCollapsed(JSON.parse(saved));
     } catch {}
-  }, [workspace.id]);
+  }, [project.id]);
 
   const handleToggle = () => {
     const next = !isCollapsed;
     setIsCollapsed(next);
     try {
       localStorage.setItem(
-        `vowena:workspace:${workspace.id}:sidebar-collapsed`,
+        `vowena:project:${project.id}:sidebar-collapsed`,
         JSON.stringify(next),
       );
     } catch {}
@@ -61,15 +61,15 @@ export function WorkspaceSidebar({
       <div className="lg:hidden border-b border-border bg-elevated/40">
         <div className="px-5 py-4 flex items-center gap-3 border-b border-border-subtle">
           <div className="w-8 h-8 shrink-0 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-xs">
-            {workspace.name.slice(0, 2).toUpperCase()}
+            {project.name.slice(0, 2).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm text-foreground truncate tracking-tight">
-              {workspace.name}
+              {project.name}
             </p>
             <p className="text-[10px] text-muted truncate font-mono">
-              {workspace.merchantAddress.slice(0, 6)}…
-              {workspace.merchantAddress.slice(-4)}
+              {project.merchantAddress.slice(0, 6)}…
+              {project.merchantAddress.slice(-4)}
             </p>
           </div>
         </div>
@@ -100,16 +100,16 @@ export function WorkspaceSidebar({
         <div className="px-4 py-5 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 shrink-0 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-sm">
-              {workspace.name.slice(0, 2).toUpperCase()}
+              {project.name.slice(0, 2).toUpperCase()}
             </div>
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm text-foreground truncate tracking-tight">
-                  {workspace.name}
+                  {project.name}
                 </p>
                 <p className="text-[10px] text-muted truncate font-mono mt-0.5">
-                  {workspace.merchantAddress.slice(0, 6)}…
-                  {workspace.merchantAddress.slice(-4)}
+                  {project.merchantAddress.slice(0, 6)}…
+                  {project.merchantAddress.slice(-4)}
                 </p>
               </div>
             )}
@@ -139,7 +139,7 @@ export function WorkspaceSidebar({
 
         <div className="border-t border-border p-3 space-y-1">
           <Link
-            href={`https://stellar.expert/explorer/testnet/account/${workspace.merchantAddress}`}
+            href={`https://stellar.expert/explorer/testnet/account/${project.merchantAddress}`}
             target="_blank"
             rel="noopener noreferrer"
             title={isCollapsed ? "View on Explorer" : undefined}

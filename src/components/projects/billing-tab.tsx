@@ -1,11 +1,11 @@
 "use client";
 
 interface BillingTabProps {
-  workspace: any;
+  project: any;
   plans: any[];
 }
 
-export function BillingTab({ workspace, plans }: BillingTabProps) {
+export function BillingTab({ project, plans }: BillingTabProps) {
   // Stats will come from on-chain events in next iteration
   const stats = [
     { label: "Monthly Revenue", value: "0.00", suffix: "USDC" },

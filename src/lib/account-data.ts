@@ -1,15 +1,15 @@
 "use client";
 
 /**
- * On-chain workspace storage using Stellar account data entries.
+ * On-chain project storage using Stellar account data entries.
  *
  * Layout (all keys are 64-byte max, all values are 64-byte max):
- *   vw{slot}         → workspace name (up to 64 bytes)
- *   vw{slot}d        → workspace description (optional, 64 bytes)
+ *   vw{slot}         → project name (up to 64 bytes)
+ *   vw{slot}d        → project description (optional, 64 bytes)
  *   vw{slot}p{planId} → empty value, presence = plan belongs to slot
  *
  * Slots are small non-negative integers assigned at creation time. They are
- * stable as long as the workspace isn't deleted.
+ * stable as long as the project isn't deleted.
  *
  * Reads use Horizon directly (no wallet needed). Writes build a standard
  * Stellar tx with ManageData ops, sign with the connected wallet, submit.
@@ -26,7 +26,7 @@ import {
 const HORIZON_URL = "https://horizon-testnet.stellar.org";
 const PASSPHRASE = Networks.TESTNET;
 
-export interface OnChainWorkspace {
+export interface OnChainProject {
   slot: number;
   name: string;
   description?: string;
@@ -68,22 +68,22 @@ function decodeB64(value: string): string {
 }
 
 /**
- * Read all workspaces (and their plan tags) from the merchant's account data.
+ * Read all projects (and their plan tags) from the merchant's account data.
  */
-export async function readWorkspaces(
+export async function readProjects(
   address: string,
-): Promise<OnChainWorkspace[]> {
+): Promise<OnChainProject[]> {
   try {
     const account = await fetchAccount(address);
     const data: Record<string, string> = account.data || {};
-    const workspaces = new Map<number, OnChainWorkspace>();
+    const projects = new Map<number, OnChainProject>();
 
-    // Pass 1: find workspace names — match `vw{slot}` but NOT `vw{slot}d` or `vw{slot}p*`
+    // Pass 1: find project names — match `vw{slot}` but NOT `vw{slot}d` or `vw{slot}p*`
     for (const [key, value] of Object.entries(data)) {
       const match = key.match(/^vw(\d+)$/);
       if (match) {
         const slot = parseInt(match[1], 10);
-        workspaces.set(slot, {
+        projects.set(slot, {
           slot,
           name: decodeB64(value),
           planIds: [],
@@ -97,7 +97,7 @@ export async function readWorkspaces(
       const match = key.match(/^vw(\d+)d$/);
       if (match) {
         const slot = parseInt(match[1], 10);
-        const ws = workspaces.get(slot);
+        const ws = projects.get(slot);
         if (ws) ws.description = decodeB64(value);
       }
     }
@@ -108,14 +108,14 @@ export async function readWorkspaces(
       if (match) {
         const slot = parseInt(match[1], 10);
         const planId = parseInt(match[2], 10);
-        const ws = workspaces.get(slot);
+        const ws = projects.get(slot);
         if (ws) ws.planIds.push(planId);
       }
     }
 
-    return Array.from(workspaces.values()).sort((a, b) => a.slot - b.slot);
+    return Array.from(projects.values()).sort((a, b) => a.slot - b.slot);
   } catch (err) {
-    console.error("readWorkspaces failed:", err);
+    console.error("readProjects failed:", err);
     return [];
   }
 }
@@ -123,7 +123,7 @@ export async function readWorkspaces(
 /**
  * Find the smallest unused slot number.
  */
-function nextSlot(existing: OnChainWorkspace[]): number {
+function nextSlot(existing: OnChainProject[]): number {
   const used = new Set(existing.map((w) => w.slot));
   let i = 0;
   while (used.has(i)) i++;
@@ -131,19 +131,19 @@ function nextSlot(existing: OnChainWorkspace[]): number {
 }
 
 /**
- * Build an unsigned Stellar tx that creates a workspace (name + optional desc).
+ * Build an unsigned Stellar tx that creates a project (name + optional desc).
  * Also returns the slot that will be assigned.
  *
- * Pass `existingWorkspaces` from the react-query cache to skip an extra
+ * Pass `existingProjects` from the react-query cache to skip an extra
  * Horizon read on every create.
  */
-export async function buildCreateWorkspaceTx(
+export async function buildCreateProjectTx(
   address: string,
   name: string,
   description?: string,
-  existingWorkspaces?: OnChainWorkspace[],
+  existingProjects?: OnChainProject[],
 ): Promise<{ xdr: string; slot: number }> {
-  const existing = existingWorkspaces ?? (await readWorkspaces(address));
+  const existing = existingProjects ?? (await readProjects(address));
   const slot = nextSlot(existing);
 
   const account = await fetchAccount(address);
@@ -179,7 +179,7 @@ export async function buildCreateWorkspaceTx(
 }
 
 /**
- * Build an unsigned Stellar tx that tags a plan to a workspace slot.
+ * Build an unsigned Stellar tx that tags a plan to a project slot.
  */
 export async function buildTagPlanTx(
   address: string,
@@ -206,15 +206,15 @@ export async function buildTagPlanTx(
 }
 
 /**
- * Build a tx to delete a workspace (removes name, desc, and all plan tags).
+ * Build a tx to delete a project (removes name, desc, and all plan tags).
  */
-export async function buildDeleteWorkspaceTx(
+export async function buildDeleteProjectTx(
   address: string,
   slot: number,
 ): Promise<string> {
-  const existing = await readWorkspaces(address);
+  const existing = await readProjects(address);
   const ws = existing.find((w) => w.slot === slot);
-  if (!ws) throw new Error("Workspace not found");
+  if (!ws) throw new Error("Project not found");
 
   const account = await fetchAccount(address);
   const source = new Account(address, account.sequence);
