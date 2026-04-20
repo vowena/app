@@ -40,7 +40,7 @@ export function IntegrateTab({ workspace, plans }: IntegrateTabProps) {
         >
           <CodeBlock
             language="ts"
-            code={`import { VowenaClient } from "vowena";
+            code={`import { VowenaClient } from "@vowena/sdk";
 
 const vowena = new VowenaClient({
   contractId: "CAHGU3IPILE6P7PH324ZTDTYJNQAOGPYZAYLIBJQWPJBVBK4MVIMZQAR",
