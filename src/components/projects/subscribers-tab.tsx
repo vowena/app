@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+
 import { useProjectSubscribers, type SubscriberRow } from "@/hooks/useProjectSubscribers";
 import { encodePlanId } from "@/lib/plan-id-codec";
 import type { NamedPlan } from "@/hooks/useProjects";
@@ -18,12 +19,20 @@ type FilterValue = (typeof FILTERS)[number];
 
 export function SubscribersTab({ project, plans }: SubscribersTabProps) {
   const [filter, setFilter] = useState<FilterValue>("All");
+  const [planFilter, setPlanFilter] = useState<number | "all">("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  const { data: subscribers, isLoading, refetch } = useProjectSubscribers(
+  const { data: allSubscribers, isLoading, refetch } = useProjectSubscribers(
     project.merchantAddress,
     plans,
   );
+
+  // Apply plan filter first, status filter second
+  const subscribers = useMemo(() => {
+    if (!allSubscribers) return undefined;
+    if (planFilter === "all") return allSubscribers;
+    return allSubscribers.filter((s) => s.plan.id === planFilter);
+  }, [allSubscribers, planFilter]);
 
   const counts = useMemo(() => {
     const c = { All: 0, Active: 0, Paused: 0, Cancelled: 0, Expired: 0 };
@@ -74,27 +83,59 @@ export function SubscribersTab({ project, plans }: SubscribersTabProps) {
       </div>
 
       {plans.length > 0 && (
-        <div className="flex items-center gap-1 mb-6 p-1 rounded-lg bg-surface w-fit overflow-x-auto">
-          {FILTERS.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                filter === f
-                  ? "bg-elevated text-foreground shadow-sm"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              {f}
-              <span
-                className={`text-[10px] tabular-nums ${
-                  filter === f ? "text-muted" : "text-muted/70"
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+          {/* Status filter chips */}
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-surface w-fit overflow-x-auto">
+            {FILTERS.map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                  filter === f
+                    ? "bg-elevated text-foreground shadow-sm"
+                    : "text-muted hover:text-foreground"
                 }`}
               >
-                {counts[f]}
-              </span>
-            </button>
-          ))}
+                {f}
+                <span
+                  className={`text-[10px] tabular-nums ${
+                    filter === f ? "text-muted" : "text-muted/70"
+                  }`}
+                >
+                  {counts[f]}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Plan filter dropdown */}
+          {plans.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="plan-filter"
+                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted shrink-0"
+              >
+                Plan
+              </label>
+              <select
+                id="plan-filter"
+                value={planFilter === "all" ? "all" : String(planFilter)}
+                onChange={(e) =>
+                  setPlanFilter(
+                    e.target.value === "all" ? "all" : Number(e.target.value),
+                  )
+                }
+                className="h-8 rounded-md border border-border bg-elevated px-2.5 text-xs focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none max-w-[180px] truncate"
+              >
+                <option value="all">All plans</option>
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name || `Plan ${p.id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
 

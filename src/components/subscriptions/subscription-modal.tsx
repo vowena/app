@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Subscription } from "@/hooks/useSubscriptions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { encodePlanId } from "@/lib/plan-id-codec";
 import {
   CloseIcon,
   CopyIcon,
@@ -89,16 +90,16 @@ export function SubscriptionModal({
         >
           {/* Header */}
           <div className="px-6 py-5 flex items-start justify-between border-b border-border">
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-4 min-w-0">
               <div className="w-11 h-11 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-sm shrink-0">
-                P{subscription.planId}
+                {(subscription.projectName?.[0] || "•").toUpperCase()}
               </div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted mb-1">
-                  Plan #{subscription.planId}
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted mb-1 truncate">
+                  {subscription.projectName || "Project"}
                 </p>
-                <h2 className="text-lg font-semibold text-foreground tracking-tight">
-                  Subscription #{subscription.id}
+                <h2 className="text-lg font-semibold text-foreground tracking-tight truncate">
+                  {subscription.planName || "Subscription"}
                 </h2>
               </div>
             </div>
@@ -219,25 +220,34 @@ export function SubscriptionModal({
 
             {activeTab === "details" && (
               <div className="space-y-1">
+                {subscription.projectName && (
+                  <DetailRow label="Project" value={subscription.projectName} />
+                )}
+                {subscription.planName && (
+                  <DetailRow label="Plan" value={subscription.planName} />
+                )}
                 <DetailRow
                   label="Subscription ID"
-                  value={subscription.id.toString()}
+                  value={`sub_${encodePlanId(subscription.id)}`}
                 />
                 <DetailRow
                   label="Plan ID"
-                  value={subscription.planId.toString()}
+                  value={encodePlanId(subscription.planId)}
                 />
                 <DetailRow
-                  label="Subscriber"
+                  label="Your wallet"
                   value={subscription.subscriber}
                   copyable
+                  external={`https://stellar.expert/explorer/testnet/account/${subscription.subscriber}`}
                 />
-                <DetailRow
-                  label="Contract"
-                  value="CBENQGQPLC3CKU5HCRZPBIT6RSZVLUJKUCVPJFJGYJ3OXEW7BZCXULC2"
-                  copyable
-                  external={`https://stellar.expert/explorer/testnet/contract/CBENQGQPLC3CKU5HCRZPBIT6RSZVLUJKUCVPJFJGYJ3OXEW7BZCXULC2`}
-                />
+                {subscription.plan?.merchant && (
+                  <DetailRow
+                    label="Merchant"
+                    value={subscription.plan.merchant}
+                    copyable
+                    external={`https://stellar.expert/explorer/testnet/account/${subscription.plan.merchant}`}
+                  />
+                )}
               </div>
             )}
           </div>

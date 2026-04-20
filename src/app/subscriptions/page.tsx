@@ -108,19 +108,29 @@ function SubscriptionCard({
     ? (Number(sub.plan.amount) / 1e7).toFixed(2)
     : "0.00";
 
+  const projectName = sub.projectName || "Untitled project";
+  const planName = sub.planName || "Plan";
+  const periodLabel = formatPeriod(sub.plan?.period || 0);
+  const initial = (projectName[0] || "•").toUpperCase();
+
   return (
     <button
       onClick={onClick}
       className="text-left rounded-xl border border-border bg-elevated hover:border-accent/40 transition-all duration-200 p-6 sm:p-7 group flex flex-col"
     >
-      <div className="flex items-start justify-between mb-5">
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted mb-1.5">
-            Plan #{sub.planId}
-          </p>
-          <h3 className="text-base font-semibold text-foreground group-hover:text-accent transition-colors truncate">
-            Subscription #{sub.id}
-          </h3>
+      <div className="flex items-start justify-between mb-5 gap-3">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          <div className="w-9 h-9 rounded-lg bg-accent-subtle flex items-center justify-center text-accent font-semibold text-sm shrink-0">
+            {initial}
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted mb-1 truncate">
+              {projectName}
+            </p>
+            <h3 className="text-base font-semibold text-foreground group-hover:text-accent transition-colors truncate">
+              {planName}
+            </h3>
+          </div>
         </div>
         <Badge
           variant={
@@ -144,18 +154,20 @@ function SubscriptionCard({
           </span>
           <span className="text-sm text-muted font-mono">USDC</span>
         </div>
-        <p className="text-xs text-muted mt-1">per {sub.plan?.period || 0}s</p>
+        <p className="text-xs text-muted mt-1">per {periodLabel}</p>
       </div>
 
       <div className="mt-auto pt-4 border-t border-border-subtle flex items-center gap-2 text-xs text-muted">
         <CalendarIcon size={12} />
         <span>
-          {nextBillingIn > 0
-            ? `Next ${nextBillingDate.toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-              })}`
-            : "Due now"}
+          {sub.status === "Active"
+            ? nextBillingIn > 0
+              ? `Next ${nextBillingDate.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}`
+              : "Due now"
+            : sub.status}
         </span>
         <span className="ml-auto text-foreground font-medium">
           {sub.periodsBilled} period{sub.periodsBilled !== 1 ? "s" : ""}
@@ -163,6 +175,17 @@ function SubscriptionCard({
       </div>
     </button>
   );
+}
+
+function formatPeriod(seconds: number): string {
+  if (seconds === 60) return "minute";
+  if (seconds === 3600) return "hour";
+  if (seconds === 86400) return "day";
+  if (seconds === 604800) return "week";
+  if (seconds === 2592000) return "month";
+  if (seconds === 7776000) return "quarter";
+  if (seconds === 31536000) return "year";
+  return `${seconds}s`;
 }
 
 function EmptyState({
