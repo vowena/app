@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { getPlan, type ChainPlan } from "@/lib/chain";
 import { getLatestLedger, subscribeToPlan } from "@/lib/contract";
+import { decodePlanId } from "@/lib/plan-id-codec";
+import { readProjects } from "@/lib/account-data";
 import { VowenaLogo } from "@/components/vowena-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -20,7 +22,7 @@ import {
 export default function CheckoutPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const planId = Number(params.planId);
+  const planId = decodePlanId(String(params.planId));
 
   const returnUrl = searchParams.get("return") || "";
   const cancelUrl = searchParams.get("cancel") || "";
@@ -29,6 +31,8 @@ export default function CheckoutPage() {
   const { address, isConnected, connect, isInitializing } = useWallet();
 
   const [plan, setPlan] = useState<ChainPlan | null>(null);
+  const [planName, setPlanName] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(true);
   const [isSubscribing, setIsSubscribing] = useState(false);
@@ -42,12 +46,30 @@ export default function CheckoutPage() {
       setIsLoadingPlan(true);
       setPlanError(null);
       try {
-        // We need any valid Stellar address as caller for the read.
-        // If user is connected, use theirs; otherwise use a known address.
+        // Reads are public; any valid Stellar address works as the simulation caller.
         const caller =
           address || "GAGRLI6F336OEJF627UNHBOPXI6VDQ75DRMSWSX2FQ25F3RFVWJOIIQU";
         const p = await getPlan(planId, caller);
-        if (!cancelled) setPlan(p);
+        if (cancelled) return;
+        setPlan(p);
+
+        // Look up the plan's display name and project name from the merchant's
+        // Stellar account data. Best-effort; if it fails the page still works
+        // with a generic title.
+        try {
+          const projects = await readProjects(p.merchant);
+          for (const proj of projects) {
+            if (proj.planNames[planId]) {
+              if (!cancelled) {
+                setPlanName(proj.planNames[planId]);
+                setProjectName(proj.name);
+              }
+              break;
+            }
+          }
+        } catch {
+          // metadata unavailable — fine, fall back to generic plan label
+        }
       } catch (err) {
         if (!cancelled) {
           setPlanError(err instanceof Error ? err.message : "Plan not found");
@@ -56,7 +78,7 @@ export default function CheckoutPage() {
         if (!cancelled) setIsLoadingPlan(false);
       }
     };
-    if (!isNaN(planId)) load();
+    if (!isNaN(planId) && planId > 0) load();
     return () => {
       cancelled = true;
     };
@@ -142,6 +164,8 @@ export default function CheckoutPage() {
         ) : plan ? (
           <CheckoutBody
             plan={plan}
+            planName={planName}
+            projectName={projectName}
             isConnected={isConnected}
             isInitializing={isInitializing}
             connect={connect}
@@ -171,6 +195,8 @@ export default function CheckoutPage() {
 
 function CheckoutBody({
   plan,
+  planName,
+  projectName,
   isConnected,
   isInitializing,
   connect,
@@ -181,6 +207,8 @@ function CheckoutBody({
   address,
 }: {
   plan: ChainPlan;
+  planName: string | null;
+  projectName: string | null;
   isConnected: boolean;
   isInitializing: boolean;
   connect: () => Promise<void>;
@@ -202,9 +230,16 @@ function CheckoutBody({
     <div className="rounded-2xl border border-border bg-elevated/80 backdrop-blur-xl shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="px-6 sm:px-8 pt-8 pb-6 text-center border-b border-border-subtle">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent mb-3">
-          Subscribe
-        </p>
+        {projectName && (
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent mb-3">
+            {projectName}
+          </p>
+        )}
+        {planName && (
+          <h1 className="text-xl font-semibold text-foreground mb-3 tracking-tight">
+            {planName}
+          </h1>
+        )}
         <div className="flex items-baseline justify-center gap-1.5 mb-2">
           <span className="text-4xl sm:text-5xl font-semibold text-foreground tracking-tight tabular-nums">
             {amount}

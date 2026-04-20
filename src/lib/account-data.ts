@@ -31,6 +31,8 @@ export interface OnChainProject {
   name: string;
   description?: string;
   planIds: number[];
+  /** plan_id -> plan name (read from vw{slot}n{planId} entries) */
+  planNames: Record<number, string>;
   merchantAddress: string;
 }
 
@@ -78,7 +80,7 @@ export async function readProjects(
     const data: Record<string, string> = account.data || {};
     const projects = new Map<number, OnChainProject>();
 
-    // Pass 1: find project names — match `vw{slot}` but NOT `vw{slot}d` or `vw{slot}p*`
+    // Pass 1: find project names — match `vw{slot}` but NOT `vw{slot}d` or `vw{slot}p*` or `vw{slot}n*`
     for (const [key, value] of Object.entries(data)) {
       const match = key.match(/^vw(\d+)$/);
       if (match) {
@@ -87,6 +89,7 @@ export async function readProjects(
           slot,
           name: decodeB64(value),
           planIds: [],
+          planNames: {},
           merchantAddress: address,
         });
       }
@@ -102,14 +105,22 @@ export async function readProjects(
       }
     }
 
-    // Pass 3: plan tags
-    for (const [key] of Object.entries(data)) {
-      const match = key.match(/^vw(\d+)p(\d+)$/);
-      if (match) {
-        const slot = parseInt(match[1], 10);
-        const planId = parseInt(match[2], 10);
+    // Pass 3: plan tags (vw{slot}p{planId}) and plan names (vw{slot}n{planId})
+    for (const [key, value] of Object.entries(data)) {
+      const tagMatch = key.match(/^vw(\d+)p(\d+)$/);
+      if (tagMatch) {
+        const slot = parseInt(tagMatch[1], 10);
+        const planId = parseInt(tagMatch[2], 10);
         const ws = projects.get(slot);
         if (ws) ws.planIds.push(planId);
+        continue;
+      }
+      const nameMatch = key.match(/^vw(\d+)n(\d+)$/);
+      if (nameMatch) {
+        const slot = parseInt(nameMatch[1], 10);
+        const planId = parseInt(nameMatch[2], 10);
+        const ws = projects.get(slot);
+        if (ws) ws.planNames[planId] = decodeB64(value);
       }
     }
 
@@ -179,12 +190,15 @@ export async function buildCreateProjectTx(
 }
 
 /**
- * Build an unsigned Stellar tx that tags a plan to a project slot.
+ * Build an unsigned Stellar tx that tags a plan to a project slot AND
+ * stores the plan's display name in account data — both in a single tx
+ * so the merchant only signs once.
  */
-export async function buildTagPlanTx(
+export async function buildTagAndNamePlanTx(
   address: string,
   planId: number,
   slot: number,
+  planName: string,
 ): Promise<string> {
   const account = await fetchAccount(address);
   const source = new Account(address, account.sequence);
@@ -197,6 +211,12 @@ export async function buildTagPlanTx(
       Operation.manageData({
         name: `vw${slot}p${planId}`,
         value: "1",
+      }),
+    )
+    .addOperation(
+      Operation.manageData({
+        name: `vw${slot}n${planId}`,
+        value: truncateUtf8(planName, 64),
       }),
     )
     .setTimeout(30)
@@ -230,6 +250,11 @@ export async function buildDeleteProjectTx(
     builder.addOperation(
       Operation.manageData({ name: `vw${slot}p${planId}`, value: null }),
     );
+    if (ws.planNames[planId]) {
+      builder.addOperation(
+        Operation.manageData({ name: `vw${slot}n${planId}`, value: null }),
+      );
+    }
   }
 
   return builder.setTimeout(30).build().toXDR();

@@ -3,24 +3,14 @@
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useProjectSubscribers, type SubscriberRow } from "@/hooks/useProjectSubscribers";
+import { encodePlanId } from "@/lib/plan-id-codec";
+import type { NamedPlan } from "@/hooks/useProjects";
 import { SubscriberDetailModal } from "@/components/projects/subscriber-detail-modal";
 import { cancelSubscription } from "@/lib/contract";
 
 interface SubscribersTabProps {
   project: { merchantAddress: string };
-  plans: Array<{
-    id: number;
-    merchant: string;
-    token: string;
-    amount: number;
-    period: number;
-    trialPeriods: number;
-    maxPeriods: number;
-    gracePeriod: number;
-    priceCeiling: number;
-    createdAt: number;
-    active: boolean;
-  }>;
+  plans: NamedPlan[];
 }
 
 const FILTERS = ["All", "Active", "Paused", "Cancelled", "Expired"] as const;
@@ -188,7 +178,9 @@ function SubscriberRowRender({
       </Td>
       <Td>
         <div>
-          <p className="text-sm">Plan #{sub.plan.id}</p>
+          <p className="text-sm font-medium text-foreground">
+            {sub.plan.name || `Plan ${encodePlanId(sub.plan.id)}`}
+          </p>
           <p className="text-[10px] text-muted font-mono">
             {amount} USDC every {formatPeriodShort(sub.plan.period)}
           </p>

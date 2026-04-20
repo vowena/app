@@ -17,6 +17,7 @@ import {
   useSubscriptionEvents,
   type SubscriptionEvent,
 } from "@/hooks/useSubscriptionEvents";
+import { encodePlanId } from "@/lib/plan-id-codec";
 
 interface SubscriberDetailModalProps {
   subscriber: SubscriberRow | null;
@@ -135,8 +136,9 @@ export function SubscriberDetailModal({
                 Subscribed to
               </p>
               <p className="text-sm font-medium text-foreground">
-                Plan #{subscriber.plan.id} · {amount} USDC every{" "}
-                {formatPeriod(subscriber.plan.period)}
+                {subscriber.plan.name || `Plan ${encodePlanId(subscriber.plan.id)}`}
+                {" · "}
+                {amount} USDC every {formatPeriod(subscriber.plan.period)}
               </p>
               {subscriber.plan.trialPeriods > 0 && (
                 <p className="text-xs text-muted mt-1">
@@ -179,7 +181,7 @@ export function SubscriberDetailModal({
             <div className="px-6 sm:px-8 py-5 border-t border-border-subtle space-y-3">
               <DetailRow
                 label="Subscription ID"
-                value={subscriber.id.toString()}
+                value={`sub_${encodePlanId(subscriber.id)}`}
               />
               <DetailRow
                 label="Subscriber wallet"

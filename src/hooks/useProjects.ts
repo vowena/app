@@ -8,12 +8,15 @@ import { useWallet } from "@/components/wallet/wallet-provider";
 import {
   readProjects,
   buildCreateProjectTx,
-  buildTagPlanTx,
+  buildTagAndNamePlanTx,
   buildDeleteProjectTx,
   submitToHorizon,
   type OnChainProject,
 } from "@/lib/account-data";
-import { getPlan } from "@/lib/chain";
+import { getPlan, type ChainPlan } from "@/lib/chain";
+
+/** Plan as used in the dashboard — augmented with the on-chain display name */
+export type NamedPlan = ChainPlan & { name?: string };
 
 export type ProjectConfig = OnChainProject & {
   /** Alias kept for back-compat; equals slugified name */
@@ -78,6 +81,7 @@ export function useProjects() {
         name,
         description,
         planIds: [],
+        planNames: {},
         merchantAddress: address,
       };
 
@@ -98,21 +102,31 @@ export function useProjects() {
     [address, queryClient, query.data, queryKey],
   );
 
-  const tagPlanToProject = useCallback(
-    async (planId: number, slot: number): Promise<void> => {
+  /**
+   * Tag a plan to a project AND store its display name on chain in a single
+   * Stellar tx (one wallet signature).
+   */
+  const tagAndNamePlan = useCallback(
+    async (planId: number, slot: number, planName: string): Promise<void> => {
       if (!address) throw new Error("Wallet not connected");
 
-      const xdr = await buildTagPlanTx(address, planId, slot);
+      const xdr = await buildTagAndNamePlanTx(address, planId, slot, planName);
       const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr, {
         networkPassphrase: Networks.TESTNET,
         address,
       });
       await submitToHorizon(signedTxXdr);
 
-      // Optimistic: append planId to that project
+      // Optimistic: append planId to that project + record name
       queryClient.setQueryData<ProjectConfig[]>(queryKey, (old = []) =>
         old.map((w) =>
-          w.slot === slot ? { ...w, planIds: [...w.planIds, planId] } : w,
+          w.slot === slot
+            ? {
+                ...w,
+                planIds: [...w.planIds, planId],
+                planNames: { ...w.planNames, [planId]: planName },
+              }
+            : w,
         ),
       );
 
@@ -150,27 +164,30 @@ export function useProjects() {
     isLoading: query.isLoading,
     error: query.error,
     createProject,
-    tagPlanToProject,
+    tagAndNamePlan,
     deleteProject,
     refetch: query.refetch,
   };
 }
 
 /**
- * Fetch all plans for a project from the Vowena contract.
+ * Fetch all plans for a project from the Vowena contract, augmenting each
+ * with its display name read from the project's account data.
  */
 export async function getProjectPlansWithData(
   merchantAddress: string,
-  planIds?: number[],
-) {
+  planIds: number[] = [],
+  planNames: Record<number, string> = {},
+): Promise<NamedPlan[]> {
   try {
-    const ids = planIds ?? [];
-    if (ids.length === 0) return [];
+    if (planIds.length === 0) return [];
 
     const plans = await Promise.all(
-      ids.map((id) => getPlan(id, merchantAddress).catch(() => null)),
+      planIds.map((id) => getPlan(id, merchantAddress).catch(() => null)),
     );
-    return plans.filter((p): p is NonNullable<typeof p> => p !== null);
+    return plans
+      .filter((p): p is NonNullable<typeof p> => p !== null)
+      .map((p) => ({ ...p, name: planNames[p.id] }));
   } catch (error) {
     console.error("Failed to fetch project plans:", error);
     return [];

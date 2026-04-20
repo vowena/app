@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/icons";
 import { createPlan } from "@/lib/contract";
 import { useProjects } from "@/hooks/useProjects";
+import { encodePlanId, planCheckoutUrl } from "@/lib/plan-id-codec";
 
 interface PlansTabProps {
   project: any;
@@ -98,14 +99,12 @@ function PlanCard({ plan }: { plan: any }) {
   const [copiedId, setCopiedId] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const amount = (Number(plan.amount) / 1e7).toFixed(2);
-
-  const checkoutUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/p/${plan.id}`
-      : `/p/${plan.id}`;
+  const encodedId = encodePlanId(plan.id);
+  const displayName = plan.name || `Plan ${encodedId}`;
+  const checkoutUrl = planCheckoutUrl(plan.id);
 
   const handleCopyId = async () => {
-    await navigator.clipboard.writeText(plan.id.toString());
+    await navigator.clipboard.writeText(encodedId);
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 1500);
   };
@@ -118,18 +117,20 @@ function PlanCard({ plan }: { plan: any }) {
 
   return (
     <div className="rounded-xl border border-border bg-elevated p-6 group flex flex-col">
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted mb-1.5">
-            Plan #{plan.id}
-          </p>
+      <div className="flex items-start justify-between mb-5 gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-semibold text-foreground tracking-tight truncate mb-1">
+            {displayName}
+          </h3>
           <div className="flex items-baseline gap-1.5">
             <span className="text-2xl font-semibold text-foreground tabular-nums tracking-tight">
               {amount}
             </span>
             <span className="text-xs text-muted font-mono">USDC</span>
           </div>
-          <p className="text-xs text-muted mt-0.5">every {plan.period}s</p>
+          <p className="text-xs text-muted mt-0.5">
+            every {formatPeriodFriendly(plan.period)}
+          </p>
         </div>
         <Badge variant={plan.active ? "active" : "expired"}>
           {plan.active ? "Active" : "Inactive"}
@@ -170,9 +171,9 @@ function PlanCard({ plan }: { plan: any }) {
           onClick={handleCopyId}
           className="w-full flex items-center justify-between text-xs text-muted hover:text-foreground transition-colors px-3"
         >
-          <span>Plan ID</span>
+          <span>ID</span>
           <span className="flex items-center gap-1.5 font-mono">
-            {plan.id}
+            {encodedId}
             {copiedId ? (
               <CheckIcon size={12} className="text-success" />
             ) : (
@@ -183,6 +184,17 @@ function PlanCard({ plan }: { plan: any }) {
       </div>
     </div>
   );
+}
+
+function formatPeriodFriendly(seconds: number): string {
+  if (seconds === 60) return "minute";
+  if (seconds === 3600) return "hour";
+  if (seconds === 86400) return "day";
+  if (seconds === 604800) return "week";
+  if (seconds === 2592000) return "month";
+  if (seconds === 7776000) return "quarter";
+  if (seconds === 31536000) return "year";
+  return `${seconds}s`;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -205,7 +217,8 @@ function CreatePlanForm({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const { tagPlanToProject, refetch } = useProjects();
+  const { tagAndNamePlan, refetch } = useProjects();
+  const [name, setName] = useState("");
   const [token, setToken] = useState(TUSDC_SAC);
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState("2592000");
@@ -227,6 +240,7 @@ function CreatePlanForm({
     try {
       const amt = parseFloat(amount);
       const ceiling = priceCeiling ? parseFloat(priceCeiling) : amt * 2;
+      const planName = name.trim();
 
       // Step 1: create plan on the Vowena contract
       setSubmitStatus("creating");
@@ -241,15 +255,15 @@ function CreatePlanForm({
         priceCeilingUsdc: ceiling,
       });
 
-      // Step 2: extract plan ID and tag it to the project
+      // Step 2: extract plan ID and tag + name it (single Stellar tx)
       const planId = extractPlanId(result);
       if (planId != null) {
         setSubmitStatus("tagging");
         try {
-          await tagPlanToProject(planId, projectSlot);
+          await tagAndNamePlan(planId, projectSlot, planName);
         } catch (tagErr) {
           console.error("Plan created but tagging failed:", tagErr);
-          // Non-fatal — plan exists on chain, just not tagged to this project
+          // Non-fatal — plan exists on chain, just not associated/named here
         }
       }
 
@@ -291,6 +305,19 @@ function CreatePlanForm({
           {error}
         </div>
       )}
+
+      <div className="mb-4">
+        <Field label="Plan name" required>
+          <Input
+            placeholder="Pro Monthly"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            maxLength={64}
+            autoFocus
+          />
+        </Field>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Amount (USDC)" required>
@@ -383,7 +410,10 @@ function CreatePlanForm({
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={isSubmitting || !amount}>
+        <Button
+          type="submit"
+          disabled={isSubmitting || !amount || !name.trim()}
+        >
           {submitStatus === "creating"
             ? "Creating plan on chain…"
             : submitStatus === "tagging"

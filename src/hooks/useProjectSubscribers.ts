@@ -5,11 +5,11 @@ import {
   getPlanSubscribers,
   getSubscription,
   type ChainSubscription,
-  type ChainPlan,
 } from "@/lib/chain";
+import type { NamedPlan } from "@/hooks/useProjects";
 
 export interface SubscriberRow extends ChainSubscription {
-  plan: ChainPlan;
+  plan: NamedPlan;
 }
 
 /**
@@ -18,7 +18,7 @@ export interface SubscriberRow extends ChainSubscription {
  */
 export function useProjectSubscribers(
   merchantAddress: string | null,
-  plans: ChainPlan[],
+  plans: NamedPlan[],
 ) {
   return useQuery({
     queryKey: [
