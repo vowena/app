@@ -79,13 +79,15 @@ export function useSubscriptions(subscriberAddress: string | null) {
         }),
       );
 
-      return baseSubs.map((sub) => ({
-        ...sub,
-        planName: sub.plan?.name,
-        projectName: sub.plan
-          ? projectNames.get(sub.plan.projectId)
-          : undefined,
-      }));
+      return baseSubs
+        .map((sub) => ({
+          ...sub,
+          planName: sub.plan?.name,
+          projectName: sub.plan
+            ? projectNames.get(sub.plan.projectId)
+            : undefined,
+        }))
+        .sort((a, b) => b.createdAt - a.createdAt);
     },
     enabled: !!subscriberAddress,
     staleTime: 10000,

@@ -297,50 +297,99 @@ function EventRow({ event }: { event: SubscriptionEvent }) {
 }
 
 function EventTimelineFallback({ subscriber }: { subscriber: SubscriberRow }) {
-  // Fallback when no events are returned from RPC (could be too old or RPC down)
+  // RPC retention has rolled past the real events. Synthesize one row per
+  // billed period from on-chain subscription state so merchants can see each
+  // charge as its own entry, each linking to the subscriber's Stellar Explorer
+  // account where the underlying tx is visible.
+  const explorerAccount = `https://stellar.expert/explorer/testnet/account/${subscriber.subscriber}`;
+  const amount = Number(subscriber.plan.amount);
+  const period = Number(subscriber.plan.period);
+  const trialPeriods = subscriber.plan.trialPeriods ?? 0;
+
+  type Row = {
+    label: string;
+    ts: number;
+    amount?: number;
+    kind: "signup" | "charge" | "cancelled";
+  };
+  const rows: Row[] = [];
+
+  const signupBilled = subscriber.periodsBilled > 0 && trialPeriods === 0;
+  rows.push({
+    label: signupBilled ? "Subscribed & charged" : "Subscribed",
+    ts: subscriber.createdAt,
+    amount: signupBilled ? amount : undefined,
+    kind: "signup",
+  });
+
+  const extraCharges = Math.max(
+    0,
+    subscriber.periodsBilled - (signupBilled ? 1 : 0),
+  );
+  for (let i = 0; i < extraCharges; i++) {
+    rows.push({
+      label: "Charge succeeded",
+      ts: subscriber.createdAt + (i + 1) * period,
+      amount,
+      kind: "charge",
+    });
+  }
+
+  if (subscriber.cancelledAt > 0) {
+    rows.push({
+      label: "Cancelled",
+      ts: subscriber.cancelledAt,
+      kind: "cancelled",
+    });
+  }
+
+  rows.sort((a, b) => b.ts - a.ts);
+
   return (
-    <div className="space-y-1">
-      <div className="flex items-start gap-3 py-2">
-        <CheckIcon size={14} className="text-success mt-1 shrink-0" />
-        <div className="flex-1">
-          <p className="text-sm font-medium text-foreground">Subscribed</p>
-          <p className="text-xs text-muted">
-            {formatDate(subscriber.createdAt)}
-          </p>
-        </div>
-      </div>
-      {subscriber.periodsBilled > 0 && (
-        <div className="flex items-start gap-3 py-2">
-          <CircleDotIcon size={14} className="text-accent mt-1 shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">
-              {subscriber.periodsBilled} period
-              {subscriber.periodsBilled !== 1 ? "s" : ""} charged
-            </p>
-            <p className="text-xs text-muted">
-              Total{" "}
-              {(
-                (Number(subscriber.plan.amount) * subscriber.periodsBilled) /
-                1e7
-              ).toFixed(2)}{" "}
-              USDC
-            </p>
-          </div>
-        </div>
-      )}
-      {subscriber.cancelledAt > 0 && (
-        <div className="flex items-start gap-3 py-2">
-          <CloseIcon size={14} className="text-error mt-1 shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">Cancelled</p>
-            <p className="text-xs text-muted">
-              {formatDate(subscriber.cancelledAt)}
-            </p>
-          </div>
-        </div>
-      )}
-      <p className="text-[10px] text-muted mt-3 italic">
-        Detailed event log unavailable from RPC for this subscription.
+    <div>
+      <ul className="space-y-0.5">
+        {rows.map((row, i) => {
+          const time = new Date(row.ts * 1000);
+          return (
+            <li key={i}>
+              <a
+                href={explorerAccount}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center justify-between gap-3 py-3 px-3 -mx-3 rounded-lg hover:bg-surface transition-colors"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground group-hover:text-accent transition-colors truncate">
+                    {row.label}
+                  </p>
+                  {row.amount != null && row.amount > 0 && (
+                    <p className="text-xs text-muted font-mono mt-0.5">
+                      {(row.amount / 1e7).toFixed(2)} USDC
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <p className="text-xs text-muted">
+                    {time.toLocaleString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                  <ExternalLinkIcon
+                    size={11}
+                    className="text-muted group-hover:text-accent transition-colors"
+                  />
+                </div>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-[10px] text-muted mt-4 italic">
+        Each row links to the subscriber&apos;s Stellar Explorer account where
+        the underlying tx is visible.
       </p>
     </div>
   );

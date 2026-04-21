@@ -58,7 +58,9 @@ export function useProjectSubscribers(
         }),
       );
 
-      return subs.filter((s): s is SubscriberRow => s !== null);
+      return subs
+        .filter((s): s is SubscriberRow => s !== null)
+        .sort((a, b) => b.createdAt - a.createdAt);
     },
     enabled: !!merchantAddress && plans.length > 0,
     staleTime: 10_000,

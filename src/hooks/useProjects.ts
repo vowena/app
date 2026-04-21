@@ -35,7 +35,7 @@ export function useProjects() {
       );
       return projects
         .filter((p): p is NonNullable<typeof p> => p !== null)
-        .sort((a, b) => a.createdAt - b.createdAt);
+        .sort((a, b) => b.createdAt - a.createdAt);
     },
     enabled: !!address,
     staleTime: 5_000,
@@ -86,7 +86,7 @@ export function useProjects() {
 
       // Optimistic update
       queryClient.setQueryData<Project[]>(queryKey, (old = []) =>
-        [...old, newProject].sort((a, b) => a.createdAt - b.createdAt),
+        [...old, newProject].sort((a, b) => b.createdAt - a.createdAt),
       );
 
       // Reconcile shortly after
@@ -131,7 +131,8 @@ export async function getProjectPlansWithData(
     return plans
       .filter((p): p is NonNullable<typeof p> => p !== null)
       .filter((p) => p.projectId === projectId)
-      .map((p) => ({ ...p }));
+      .map((p) => ({ ...p }))
+      .sort((a, b) => b.createdAt - a.createdAt);
   } catch (error) {
     console.error("Failed to fetch project plans:", error);
     return [];

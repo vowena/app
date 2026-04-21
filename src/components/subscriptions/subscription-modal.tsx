@@ -11,7 +11,6 @@ import {
   CopyIcon,
   CheckIcon,
   ExternalLinkIcon,
-  CalendarIcon,
 } from "@/components/ui/icons";
 
 interface SubscriptionModalProps {
@@ -358,65 +357,35 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
   }
 
   if (!events || events.length === 0) {
-    // Synthesize from subscription state since RPC retention may have rolled
-    const synth: Array<{
-      label: string;
-      ts: number;
-      amount?: number;
-    }> = [
-      {
-        label: "Subscribed",
-        ts: subscription.createdAt,
-        amount:
-          subscription.periodsBilled > 0
-            ? Number(subscription.plan?.amount || 0)
-            : undefined,
-      },
-    ];
-    if (subscription.periodsBilled > 1) {
-      synth.push({
-        label: `${subscription.periodsBilled - 1} additional charge${subscription.periodsBilled > 2 ? "s" : ""}`,
-        ts: subscription.createdAt,
-        amount:
-          (subscription.periodsBilled - 1) *
-          Number(subscription.plan?.amount || 0),
-      });
-    }
-    if (subscription.cancelledAt > 0) {
-      synth.push({
-        label: "Cancelled",
-        ts: subscription.cancelledAt,
-      });
-    }
+    // RPC retention has rolled past the actual events. Synthesize a row PER
+    // billed period so users see every charge as its own entry, not a
+    // consolidated "N additional charges" lump.
+    const items = synthesizeEntries(subscription);
     return (
       <div>
         <ul className="space-y-0.5">
-          {synth.map((s, i) => (
-            <li key={i} className="flex items-center justify-between gap-3 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {s.label}
-                </p>
-                {s.amount != null && s.amount > 0 && (
-                  <p className="text-xs text-muted font-mono mt-0.5">
-                    {(s.amount / 1e7).toFixed(2)} USDC
-                  </p>
-                )}
-              </div>
-              <p className="text-xs text-muted shrink-0">
-                {new Date(s.ts * 1000).toLocaleString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </p>
+          {items.map((item, i) => (
+            <li key={i}>
+              {item.href ? (
+                <a
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center justify-between gap-3 py-3 px-3 -mx-3 rounded-lg hover:bg-surface transition-colors"
+                >
+                  <SynthRowBody item={item} />
+                </a>
+              ) : (
+                <div className="flex items-center justify-between gap-3 py-3 px-3 -mx-3">
+                  <SynthRowBody item={item} />
+                </div>
+              )}
             </li>
           ))}
         </ul>
         <p className="text-[10px] text-muted mt-4 italic">
-          Live event log updates as new events occur. Older events may not be
-          retained by the RPC.
+          Charges shown from on-chain state. Each row links to the
+          subscriber&apos;s Stellar transaction history on Explorer.
         </p>
       </div>
     );
@@ -467,6 +436,106 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
         );
       })}
     </ul>
+  );
+}
+
+interface SynthEntry {
+  label: string;
+  ts: number;
+  amount?: number;
+  href?: string;
+  /** "signup", "charge", "cancelled" — lets the row show a subtle type chip */
+  kind: "signup" | "charge" | "cancelled";
+}
+
+/**
+ * When RPC event retention has rolled past the real events we can still give
+ * the subscriber a row-per-charge view by walking `periodsBilled`. Each row
+ * links to the subscriber's account on Stellar Explorer so they can inspect
+ * the underlying transaction.
+ */
+function synthesizeEntries(subscription: Subscription): SynthEntry[] {
+  const explorerAccount = `https://stellar.expert/explorer/testnet/account/${subscription.subscriber}`;
+  const amount = Number(subscription.plan?.amount || 0);
+  const period = Number(subscription.plan?.period || 0);
+  const entries: SynthEntry[] = [];
+
+  // Signup row — if trial was 0, the first charge was atomic with subscribe,
+  // so we call it "Subscribed & charged"; otherwise just "Subscribed".
+  const trialPeriods = subscription.plan?.trialPeriods ?? 0;
+  const signupBilled =
+    subscription.periodsBilled > 0 && trialPeriods === 0;
+  entries.push({
+    label: signupBilled ? "Subscribed & charged" : "Subscribed",
+    ts: subscription.createdAt,
+    amount: signupBilled ? amount : undefined,
+    href: explorerAccount,
+    kind: "signup",
+  });
+
+  // One row per subsequent billed period. The signup counts as periodsBilled=1
+  // when there was no trial, so extra charges = periodsBilled - (signupBilled ? 1 : 0).
+  const extraCharges = Math.max(
+    0,
+    subscription.periodsBilled - (signupBilled ? 1 : 0),
+  );
+  for (let i = 0; i < extraCharges; i++) {
+    // Approximate charge timestamp: created + (i+1) * period when there was
+    // a trial, or created + (i+1) * period for post-signup charges.
+    const ts = subscription.createdAt + (i + 1) * period;
+    entries.push({
+      label: "Charge succeeded",
+      ts,
+      amount,
+      href: explorerAccount,
+      kind: "charge",
+    });
+  }
+
+  if (subscription.cancelledAt > 0) {
+    entries.push({
+      label: "Cancelled",
+      ts: subscription.cancelledAt,
+      href: explorerAccount,
+      kind: "cancelled",
+    });
+  }
+
+  // Newest first
+  return entries.sort((a, b) => b.ts - a.ts);
+}
+
+function SynthRowBody({ item }: { item: SynthEntry }) {
+  const time = new Date(item.ts * 1000);
+  return (
+    <>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-foreground group-hover:text-accent transition-colors truncate">
+          {item.label}
+        </p>
+        {item.amount != null && item.amount > 0 && (
+          <p className="text-xs text-muted font-mono mt-0.5">
+            {(item.amount / 1e7).toFixed(2)} USDC
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <p className="text-xs text-muted">
+          {time.toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </p>
+        {item.href && (
+          <ExternalLinkIcon
+            size={11}
+            className="text-muted group-hover:text-accent transition-colors"
+          />
+        )}
+      </div>
+    </>
   );
 }
 
