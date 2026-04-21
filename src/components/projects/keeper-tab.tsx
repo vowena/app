@@ -158,7 +158,11 @@ export function KeeperTab({ project }: KeeperTabProps) {
               want to charge due subs immediately.
             </p>
           </div>
-          <Button onClick={handleRunNow} disabled={isRunning} className="shrink-0">
+          <Button
+            onClick={handleRunNow}
+            disabled={isRunning}
+            className="shrink-0"
+          >
             {isRunning ? "Running…" : "Run now"}
           </Button>
         </div>
@@ -198,7 +202,9 @@ export function KeeperTab({ project }: KeeperTabProps) {
                 key={i}
                 className="px-5 sm:px-6 py-3 flex items-center gap-3 text-sm"
               >
-                <div className={`shrink-0 ${run.error ? "text-error" : "text-success"}`}>
+                <div
+                  className={`shrink-0 ${run.error ? "text-error" : "text-success"}`}
+                >
                   {run.error ? (
                     <AlertTriangleIcon size={14} />
                   ) : (
@@ -232,10 +238,10 @@ export function KeeperTab({ project }: KeeperTabProps) {
       {/* Production note */}
       <div className="mt-6 rounded-lg border border-border bg-surface/40 p-4">
         <p className="text-xs text-secondary leading-relaxed">
-          <span className="font-semibold text-foreground">In production</span>{" "}
-          a server cron hits this same endpoint every few minutes — no
-          dashboard needed. The toggle above is just a per-device convenience
-          for testing locally; the actual scheduling lives on the server.
+          <span className="font-semibold text-foreground">In production</span> a
+          server cron hits this same endpoint every few minutes — no dashboard
+          needed. The toggle above is just a per-device convenience for testing
+          locally; the actual scheduling lives on the server.
         </p>
       </div>
     </div>

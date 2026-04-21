@@ -1,11 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  rpc as SorobanRpc,
-  xdr,
-  scValToNative,
-} from "@stellar/stellar-sdk";
+import { rpc as SorobanRpc, xdr, scValToNative } from "@stellar/stellar-sdk";
 import { CONTRACT } from "@/lib/chain";
 
 export interface SubscriptionEvent {
@@ -77,9 +73,7 @@ interface DecodedEvent {
   data: unknown;
 }
 
-function decodeEvent(
-  raw: SorobanRpc.Api.EventResponse,
-): DecodedEvent | null {
+function decodeEvent(raw: SorobanRpc.Api.EventResponse): DecodedEvent | null {
   const topics = raw.topic.map((t) => {
     try {
       if (typeof t === "string") {

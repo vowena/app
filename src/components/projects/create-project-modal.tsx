@@ -141,8 +141,8 @@ export function CreateProjectModal({
                   maxLength={64}
                 />
                 <p className="text-[10px] text-muted mt-1.5">
-                  Stored on chain. The URL will use a unique chain-assigned ID
-                  — no slug collisions, ever.
+                  Stored on chain. The URL will use a unique chain-assigned ID —
+                  no slug collisions, ever.
                 </p>
               </div>
 

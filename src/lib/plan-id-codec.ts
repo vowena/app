@@ -26,16 +26,15 @@
  *   - Alphabet excludes ambiguous chars (I, O, l, 0, 1)
  */
 
-const ALPHABET =
-  "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
 const BASE = BigInt(ALPHABET.length); // 56
 const MIN_LENGTH = 5;
 
 // Multiplicative scrambling — bijective mapping from u32 to u32.
 // SCRAMBLE is the well-known golden-ratio constant (Knuth's multiplicative hash).
-const SCRAMBLE = 0x9e3779b1n;        // 2654435761
-const MASK = (1n << 32n) - 1n;       // 2^32 - 1
-const MOD = 1n << 32n;               // 2^32
+const SCRAMBLE = 0x9e3779b1n; // 2654435761
+const MASK = (1n << 32n) - 1n; // 2^32 - 1
+const MOD = 1n << 32n; // 2^32
 
 // Modular inverse of SCRAMBLE mod 2^32, computed once at module load.
 // We need this so unscramble(scramble(x)) === x for any x in [0, 2^32).

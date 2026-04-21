@@ -23,8 +23,7 @@ export default function SubscriptionsPage() {
 
 function SubscriptionsView() {
   const { address } = useWallet();
-  const { data: subscriptions, isLoading, refetch } =
-    useSubscriptions(address);
+  const { data: subscriptions, isLoading, refetch } = useSubscriptions(address);
   const [selectedSubId, setSelectedSubId] = useState<number | null>(null);
 
   const handleCancel = async () => {

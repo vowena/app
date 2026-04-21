@@ -104,8 +104,7 @@ function ProjectsView() {
                 )}
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <p className="font-mono text-muted truncate">
-                    {project.merchant.slice(0, 6)}…
-                    {project.merchant.slice(-6)}
+                    {project.merchant.slice(0, 6)}…{project.merchant.slice(-6)}
                   </p>
                   <span className="text-muted shrink-0 font-mono text-[10px]">
                     #{encodePlanId(project.id)}
@@ -164,9 +163,8 @@ function UpgradeView({ onActivate }: { onActivate: () => void }) {
           </h1>
 
           <p className="text-base sm:text-lg text-secondary leading-relaxed mb-10">
-            Projects give you everything you need to accept recurring
-            payments. Create plans, share checkout links, and integrate in
-            minutes.
+            Projects give you everything you need to accept recurring payments.
+            Create plans, share checkout links, and integrate in minutes.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
@@ -231,8 +229,8 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         No projects yet
       </h3>
       <p className="text-secondary text-sm mb-8 max-w-sm mx-auto leading-relaxed">
-        Create your first project to start accepting recurring payments for
-        your product.
+        Create your first project to start accepting recurring payments for your
+        product.
       </p>
       <Button onClick={onCreate} className="gap-2">
         <PlusIcon size={14} />

@@ -134,7 +134,10 @@ export async function getSubscriberSubscriptions(
   try {
     // Use READ_CALLER as the simulation source so even unfunded fresh
     // wallets can query their (empty) subscription list without errors.
-    const subIds = await client.getSubscriberSubscriptions(address, READ_CALLER);
+    const subIds = await client.getSubscriberSubscriptions(
+      address,
+      READ_CALLER,
+    );
     return subIds.map((id) => Number(id));
   } catch (error) {
     console.error("getSubscriberSubscriptions failed:", error);

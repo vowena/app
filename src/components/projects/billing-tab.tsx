@@ -95,10 +95,7 @@ export function BillingTab({ project, plans }: BillingTabProps) {
         });
       }
 
-      const extras = Math.max(
-        0,
-        sub.periodsBilled - (signupBilled ? 1 : 0),
-      );
+      const extras = Math.max(0, sub.periodsBilled - (signupBilled ? 1 : 0));
       for (let i = 0; i < extras; i++) {
         rows.push({
           ts: sub.createdAt + (i + 1) * period,

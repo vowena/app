@@ -24,7 +24,10 @@ export function useProjectSubscribers(
     queryKey: [
       "project-subscribers",
       merchantAddress,
-      plans.map((p) => p.id).sort().join(","),
+      plans
+        .map((p) => p.id)
+        .sort()
+        .join(","),
     ],
     queryFn: async (): Promise<SubscriberRow[]> => {
       if (!merchantAddress || plans.length === 0) return [];
@@ -36,7 +39,10 @@ export function useProjectSubscribers(
             const subIds = await getPlanSubscribers(plan.id, merchantAddress);
             return subIds.map((subId) => ({ subId, plan }));
           } catch (err) {
-            console.error(`getPlanSubscribers failed for plan ${plan.id}:`, err);
+            console.error(
+              `getPlanSubscribers failed for plan ${plan.id}:`,
+              err,
+            );
             return [];
           }
         }),

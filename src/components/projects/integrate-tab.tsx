@@ -105,9 +105,7 @@ if (sub.status === "Active") {
       {/* Plan reference */}
       <div className="rounded-xl border border-border bg-elevated overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">
-            Your plans
-          </h3>
+          <h3 className="text-sm font-semibold text-foreground">Your plans</h3>
           <p className="text-xs text-muted mt-0.5">
             Copy a checkout link or plan ID to use in your integration.
           </p>
@@ -194,10 +192,7 @@ function PlanReferenceRow({ plan }: { plan: NamedPlan }) {
   const checkoutUrl = planCheckoutUrl(plan.id);
   const displayName = plan.name || `Plan ${encodedId}`;
 
-  const copy = async (
-    text: string,
-    setFlag: (b: boolean) => void,
-  ) => {
+  const copy = async (text: string, setFlag: (b: boolean) => void) => {
     await navigator.clipboard.writeText(text);
     setFlag(true);
     setTimeout(() => setFlag(false), 1500);

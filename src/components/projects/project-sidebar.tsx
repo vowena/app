@@ -68,8 +68,7 @@ export function ProjectSidebar({
               {project.name}
             </p>
             <p className="text-[10px] text-muted truncate font-mono">
-              {project.merchant.slice(0, 6)}…
-              {project.merchant.slice(-4)}
+              {project.merchant.slice(0, 6)}…{project.merchant.slice(-4)}
             </p>
           </div>
         </div>
@@ -108,8 +107,7 @@ export function ProjectSidebar({
                   {project.name}
                 </p>
                 <p className="text-[10px] text-muted truncate font-mono mt-0.5">
-                  {project.merchant.slice(0, 6)}…
-                  {project.merchant.slice(-4)}
+                  {project.merchant.slice(0, 6)}…{project.merchant.slice(-4)}
                 </p>
               </div>
             )}

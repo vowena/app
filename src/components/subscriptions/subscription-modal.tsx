@@ -469,8 +469,7 @@ function synthesizeEntries(subscription: Subscription): SynthEntry[] {
   const entries: SynthEntry[] = [];
 
   const trialPeriods = subscription.plan?.trialPeriods ?? 0;
-  const signupBilled =
-    subscription.periodsBilled > 0 && trialPeriods === 0;
+  const signupBilled = subscription.periodsBilled > 0 && trialPeriods === 0;
   entries.push({
     label: signupBilled ? "Subscribed & charged" : "Subscribed",
     ts: subscription.createdAt,

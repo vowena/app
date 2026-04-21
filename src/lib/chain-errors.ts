@@ -61,8 +61,7 @@ const PATTERN_MAP: Array<{
   },
   {
     match: /tx_insufficient_balance|tx_insufficient_fee/i,
-    message:
-      "Your wallet doesn't have enough XLM for the network fee.",
+    message: "Your wallet doesn't have enough XLM for the network fee.",
   },
   {
     match: /op_underfunded/i,

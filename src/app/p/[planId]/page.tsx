@@ -111,7 +111,9 @@ export default function CheckoutPage() {
       if (!res.ok) {
         throw new Error(data?.error || "Faucet request failed");
       }
-      setFundingMessage(`Sent ${data.amount} ${data.asset}. Try Subscribe again.`);
+      setFundingMessage(
+        `Sent ${data.amount} ${data.asset}. Try Subscribe again.`,
+      );
       setNeedsFunding(false);
     } catch (err) {
       setSubError(formatChainError(err, "Couldn't fund wallet"));
@@ -470,8 +472,8 @@ function CheckoutBody({
                 </p>
                 <p className="text-xs text-secondary leading-relaxed">
                   Your wallet hasn&apos;t been used on Stellar testnet yet. Tap
-                  below to activate it with free test XLM (one-time, takes a
-                  few seconds).
+                  below to activate it with free test XLM (one-time, takes a few
+                  seconds).
                 </p>
               </div>
             </div>
@@ -577,10 +579,7 @@ function CheckoutBody({
             className="w-full h-11 gap-2"
             onClick={onSubscribe}
             disabled={
-              isSubscribing ||
-              needsActivation ||
-              needsTrustline ||
-              needsFunding
+              isSubscribing || needsActivation || needsTrustline || needsFunding
             }
           >
             {isSubscribing
@@ -727,4 +726,3 @@ function formatPeriod(seconds: number): string {
   if (seconds === 31536000) return "year";
   return `${seconds}s`;
 }
-

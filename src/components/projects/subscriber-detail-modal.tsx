@@ -59,7 +59,8 @@ export function SubscriberDetailModal({
 
   const amount = (Number(subscriber.plan.amount) / 1e7).toFixed(2);
   const totalPaid = (
-    (Number(subscriber.plan.amount) * subscriber.periodsBilled) / 1e7
+    (Number(subscriber.plan.amount) * subscriber.periodsBilled) /
+    1e7
   ).toFixed(2);
   const now = Math.floor(Date.now() / 1000);
   const nextBillingIn = subscriber.nextBillingTime - now;
@@ -111,11 +112,7 @@ export function SubscriberDetailModal({
             {/* Top stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border-subtle border-b border-border-subtle">
               <Stat label="Amount" value={`${amount}`} suffix="USDC" />
-              <Stat
-                label="Total paid"
-                value={`${totalPaid}`}
-                suffix="USDC"
-              />
+              <Stat label="Total paid" value={`${totalPaid}`} suffix="USDC" />
               <Stat
                 label="Periods"
                 value={subscriber.periodsBilled.toString()}
@@ -123,9 +120,7 @@ export function SubscriberDetailModal({
               <Stat
                 label="Next billing"
                 value={
-                  nextBillingIn > 0
-                    ? formatRelative(nextBillingIn)
-                    : "Due now"
+                  nextBillingIn > 0 ? formatRelative(nextBillingIn) : "Due now"
                 }
               />
             </div>
@@ -136,7 +131,8 @@ export function SubscriberDetailModal({
                 Subscribed to
               </p>
               <p className="text-sm font-medium text-foreground">
-                {subscriber.plan.name || `Plan ${encodePlanId(subscriber.plan.id)}`}
+                {subscriber.plan.name ||
+                  `Plan ${encodePlanId(subscriber.plan.id)}`}
                 {" · "}
                 {amount} USDC every {formatPeriod(subscriber.plan.period)}
               </p>
@@ -157,7 +153,10 @@ export function SubscriberDetailModal({
               {eventsLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-start gap-3 animate-pulse">
+                    <div
+                      key={i}
+                      className="flex items-start gap-3 animate-pulse"
+                    >
                       <div className="w-2 h-2 rounded-full bg-surface mt-2 shrink-0" />
                       <div className="flex-1 space-y-1.5">
                         <div className="h-3 w-32 bg-surface rounded" />

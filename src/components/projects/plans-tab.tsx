@@ -328,10 +328,7 @@ function CreatePlanForm({
           </select>
         </Field>
 
-        <Field
-          label="Free trial (days)"
-          hint="Optional. 0 = charge on signup."
-        >
+        <Field label="Free trial (days)" hint="Optional. 0 = charge on signup.">
           <Input
             type="number"
             placeholder="0"
@@ -349,7 +346,10 @@ function CreatePlanForm({
             Advanced
           </summary>
           <div className="mt-3 pt-3 border-t border-border-subtle">
-            <Field label="Token contract" hint="Stellar SAC for the asset to bill in. Defaults to TUSDC on testnet.">
+            <Field
+              label="Token contract"
+              hint="Stellar SAC for the asset to bill in. Defaults to TUSDC on testnet."
+            >
               <Input
                 value={token}
                 onChange={(e) => setToken(e.target.value)}

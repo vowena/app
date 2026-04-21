@@ -66,9 +66,13 @@ export async function GET(request: NextRequest) {
     const planIds = Array.from({ length: MAX_PLAN_SCAN }, (_, i) => i + 1);
     const subscribersPerPlan = await Promise.all(
       planIds.map((pid) =>
-        readVecU64(server, keeper.publicKey(), contract, "get_plan_subscribers", [
-          nativeToScVal(pid, { type: "u64" }),
-        ]).catch(() => [] as number[]),
+        readVecU64(
+          server,
+          keeper.publicKey(),
+          contract,
+          "get_plan_subscribers",
+          [nativeToScVal(pid, { type: "u64" })],
+        ).catch(() => [] as number[]),
       ),
     );
     const subIds = Array.from(new Set(subscribersPerPlan.flat()));
@@ -135,7 +139,13 @@ async function chargeOne(
     prepared.sign(keeper);
     const sent = await server.sendTransaction(prepared);
     if (sent.status === "ERROR") {
-      const code = (sent as { errorResult?: { result?: () => { switch?: () => { name?: string } } } })?.errorResult?.result?.()?.switch?.()?.name;
+      const code = (
+        sent as {
+          errorResult?: { result?: () => { switch?: () => { name?: string } } };
+        }
+      )?.errorResult
+        ?.result?.()
+        ?.switch?.()?.name;
       return { subId, error: `send: ${code ?? "error"}` };
     }
     return { subId, hash: sent.hash };

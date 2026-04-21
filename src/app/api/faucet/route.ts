@@ -24,7 +24,8 @@ import {
  * endpoint is not used.
  */
 
-const ISSUER_PUBLIC = "GBAINHPXCOOQMUYL5AEOMLIXDDQJOMYPIO4KZXXSUSHMZWQVIQA4CFQV";
+const ISSUER_PUBLIC =
+  "GBAINHPXCOOQMUYL5AEOMLIXDDQJOMYPIO4KZXXSUSHMZWQVIQA4CFQV";
 const ASSET_CODE = "TUSDC";
 const HORIZON_URL = "https://horizon-testnet.stellar.org";
 const FAUCET_AMOUNT = "1000"; // 1000 TUSDC per request
@@ -88,10 +89,7 @@ export async function POST(req: Request) {
         b.asset_issuer === ISSUER_PUBLIC,
     );
     if (!hasTrustline) {
-      return jsonError(
-        "No TUSDC trustline. Establish a trustline first.",
-        400,
-      );
+      return jsonError("No TUSDC trustline. Establish a trustline first.", 400);
     }
 
     const account = await horizon.loadAccount(issuer.publicKey());

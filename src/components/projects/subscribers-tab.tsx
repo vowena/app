@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
-import { useProjectSubscribers, type SubscriberRow } from "@/hooks/useProjectSubscribers";
+import {
+  useProjectSubscribers,
+  type SubscriberRow,
+} from "@/hooks/useProjectSubscribers";
 import { encodePlanId } from "@/lib/plan-id-codec";
 import type { NamedPlan } from "@/hooks/useProjects";
 import { SubscriberDetailModal } from "@/components/projects/subscriber-detail-modal";
@@ -23,10 +26,11 @@ export function SubscribersTab({ project, plans }: SubscribersTabProps) {
   const [planFilter, setPlanFilter] = useState<number | "all">("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  const { data: allSubscribers, isLoading, refetch } = useProjectSubscribers(
-    project.merchant,
-    plans,
-  );
+  const {
+    data: allSubscribers,
+    isLoading,
+    refetch,
+  } = useProjectSubscribers(project.merchant, plans);
 
   // Apply plan filter first, status filter second
   const subscribers = useMemo(() => {
@@ -54,7 +58,12 @@ export function SubscribersTab({ project, plans }: SubscribersTabProps) {
   const selected = subscribers?.find((s) => s.id === selectedId) || null;
 
   const handleCancel = async (subId: number) => {
-    if (!confirm("Cancel this subscription? The subscriber will stop being billed.")) return;
+    if (
+      !confirm(
+        "Cancel this subscription? The subscriber will stop being billed.",
+      )
+    )
+      return;
     try {
       await cancelSubscription({
         caller: project.merchant,
@@ -199,7 +208,8 @@ function SubscriberRowRender({
 }) {
   const amount = (Number(sub.plan.amount) / 1e7).toFixed(2);
   const totalPaid = (
-    (Number(sub.plan.amount) * sub.periodsBilled) / 1e7
+    (Number(sub.plan.amount) * sub.periodsBilled) /
+    1e7
   ).toFixed(2);
   const nextBilling = new Date(sub.nextBillingTime * 1000);
 
@@ -235,9 +245,7 @@ function SubscriberRowRender({
         <span className="tabular-nums">{sub.periodsBilled}</span>
       </Td>
       <Td align="right">
-        <span className="tabular-nums font-mono text-xs">
-          {totalPaid} USDC
-        </span>
+        <span className="tabular-nums font-mono text-xs">{totalPaid} USDC</span>
       </Td>
       <Td align="right">
         <span className="text-xs text-muted">

@@ -79,9 +79,13 @@ export async function POST(request: NextRequest) {
 
     const subscribersPerPlan = await Promise.all(
       merchantPlanIds.map((pid) =>
-        readVecU64(server, keeper.publicKey(), contract, "get_plan_subscribers", [
-          nativeToScVal(pid, { type: "u64" }),
-        ]).catch(() => [] as number[]),
+        readVecU64(
+          server,
+          keeper.publicKey(),
+          contract,
+          "get_plan_subscribers",
+          [nativeToScVal(pid, { type: "u64" })],
+        ).catch(() => [] as number[]),
       ),
     );
     const subIds = Array.from(new Set(subscribersPerPlan.flat()));
