@@ -3,9 +3,14 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/components/wallet/wallet-provider";
-import { client, getMerchantProjects, getProject, READ_CALLER } from "@/lib/chain";
+import {
+  getMerchantPlans,
+  getMerchantProjects,
+  getPlan,
+  getProject,
+  type ChainPlan,
+} from "@/lib/chain";
 import { createProject as createProjectTx } from "@/lib/contract";
-import { getPlan, getMerchantPlans, type ChainPlan } from "@/lib/chain";
 
 export interface Project {
   /** Globally unique chain-assigned u64. The single source of identity. */
@@ -139,6 +144,3 @@ export async function getProjectPlansWithData(
   }
 }
 
-// Re-export so existing imports keep working without changes
-void client;
-void READ_CALLER;

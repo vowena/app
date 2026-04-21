@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import {
   getPlan,
+  getProject,
   getSubscriberSubscriptions,
-  getSubscription,
   type ChainPlan,
 } from "@/lib/chain";
 import { getLatestLedger, subscribeToPlan } from "@/lib/contract";
@@ -21,7 +21,6 @@ import {
   TUSDC_CODE,
   TUSDC_ISSUER,
 } from "@/lib/account-data";
-import { getProject } from "@/lib/chain";
 import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit/sdk";
 import { Networks } from "@creit.tech/stellar-wallets-kit";
 import { VowenaLogo } from "@/components/vowena-logo";
