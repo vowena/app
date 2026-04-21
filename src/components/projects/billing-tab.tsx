@@ -24,7 +24,10 @@ export function BillingTab({ project, plans }: BillingTabProps) {
     plans,
   );
   const { data: merchantChargeTxs, isLoading: isLoadingChargeTxs } =
-    useMerchantChargeTxs(project.merchant);
+    useMerchantChargeTxs(
+      project.merchant,
+      subscribers?.map((sub) => sub.id) ?? [],
+    );
 
   const { mrr, totalRevenue, activeCount, failedCount, churnRate } =
     useMemo(() => {
@@ -86,6 +89,7 @@ export function BillingTab({ project, plans }: BillingTabProps) {
       const amount = Number(sub.plan.amount);
       const planName = sub.plan.name || `Plan ${sub.plan.id}`;
       const matchingTxs = filterChargeTxs(merchantChargeTxs ?? [], {
+        subId: sub.id,
         subscriber: sub.subscriber,
         amountStroops: amount,
         since: sub.createdAt,

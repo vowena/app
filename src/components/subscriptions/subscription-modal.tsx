@@ -353,6 +353,7 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
   const shouldResolveChargeTxs =
     subscription.periodsBilled > 0 && amountStroops > 0 && !!merchant;
   const { data: chargeTxs, isLoading: isLoadingChargeTxs } = useChargeTxs({
+    subId: subscription.id,
     subscriber: subscription.subscriber,
     merchant,
     amountStroops,
@@ -413,9 +414,9 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
           <p className="text-[10px] text-muted mt-4 italic">
             {exactRows > 0
               ? "Linked charge rows open the exact Stellar transaction hash."
-              : "Horizon did not return matching payment hashes for these older rows."}{" "}
+              : "Transaction hashes are not available from the current indexes for these rows."}{" "}
             {reconstructedChargeRows > 0
-              ? "Unlinked charge rows are reconstructed from on-chain subscription state."
+              ? "Rows without links are reconstructed from on-chain subscription state."
               : ""}
           </p>
         )}

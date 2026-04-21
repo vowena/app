@@ -68,6 +68,7 @@ export function SubscriberDetailModal({
       : undefined
     : undefined;
   const { data: chargeTxs, isLoading: chargeTxsLoading } = useChargeTxs({
+    subId: subscriber?.id,
     subscriber: subscriber?.subscriber,
     merchant: subscriber?.plan.merchant,
     amountStroops,
@@ -408,9 +409,9 @@ function EventTimelineFallback({
         <p className="text-[10px] text-muted mt-4 italic">
           {exactRows > 0
             ? "Linked charge rows open the exact Stellar transaction hash."
-            : "Horizon did not return matching payment hashes for these older rows."}{" "}
+            : "Transaction hashes are not available from the current indexes for these rows."}{" "}
           {reconstructedChargeRows > 0
-            ? "Unlinked charge rows are reconstructed from on-chain subscription state."
+            ? "Rows without links are reconstructed from on-chain subscription state."
             : ""}
         </p>
       )}
