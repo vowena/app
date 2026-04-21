@@ -12,6 +12,7 @@ import {
 } from "@/lib/chain";
 import { getLatestLedger, subscribeToPlan } from "@/lib/contract";
 import { decodePlanId, encodePlanId } from "@/lib/plan-id-codec";
+import { formatChainError } from "@/lib/chain-errors";
 import {
   readProjects,
   buildTrustlineTx,
@@ -90,11 +91,7 @@ export default function CheckoutPage() {
       const funded = await isAccountFunded(address);
       setNeedsActivation(!funded);
     } catch (err) {
-      setSubError(
-        err instanceof Error
-          ? `Couldn't activate wallet: ${err.message}`
-          : "Couldn't activate wallet",
-      );
+      setSubError(formatChainError(err, "Couldn't activate wallet"));
     } finally {
       setIsActivating(false);
     }
@@ -118,11 +115,7 @@ export default function CheckoutPage() {
       setFundingMessage(`Sent ${data.amount} ${data.asset}. Try Subscribe again.`);
       setNeedsFunding(false);
     } catch (err) {
-      setSubError(
-        err instanceof Error
-          ? `Couldn't fund wallet: ${err.message}`
-          : "Couldn't fund wallet",
-      );
+      setSubError(formatChainError(err, "Couldn't fund wallet"));
     } finally {
       setIsFunding(false);
     }
@@ -141,11 +134,7 @@ export default function CheckoutPage() {
       await submitToHorizon(signedTxXdr);
       setNeedsTrustline(false);
     } catch (err) {
-      setSubError(
-        err instanceof Error
-          ? `Couldn't establish trustline: ${err.message}`
-          : "Couldn't establish trustline",
-      );
+      setSubError(formatChainError(err, "Couldn't establish trustline"));
     } finally {
       setIsEstablishingTrustline(false);
     }
@@ -184,7 +173,7 @@ export default function CheckoutPage() {
         }
       } catch (err) {
         if (!cancelled) {
-          setPlanError(err instanceof Error ? err.message : "Plan not found");
+          setPlanError(formatChainError(err, "Plan not found"));
         }
       } finally {
         if (!cancelled) setIsLoadingPlan(false);
@@ -236,16 +225,12 @@ export default function CheckoutPage() {
 
       setSuccess({ subId });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to subscribe";
+      const raw = err instanceof Error ? err.message : String(err ?? "");
 
-      // Stellar token contract returns Error(Contract, #13) for missing
-      // trustline and Error(Contract, #10) for insufficient balance.
-      const isTrustlineErr =
-        /trustline entry is missing/i.test(msg) ||
-        /Error\(Contract, #13\)/.test(msg);
+      // Token contract errors get inline self-fix panels instead of error text.
+      const isTrustlineErr = /trustline entry is missing/i.test(raw);
       const isBalanceErr =
-        /resulting balance is not within the allowed range/i.test(msg) ||
-        /Error\(Contract, #10\)/.test(msg);
+        /resulting balance is not within the allowed range/i.test(raw);
 
       if (isTrustlineErr) {
         setNeedsTrustline(true);
@@ -254,7 +239,7 @@ export default function CheckoutPage() {
         setNeedsFunding(true);
         setSubError(null);
       } else {
-        setSubError(msg);
+        setSubError(formatChainError(err, "Couldn't complete subscription"));
       }
     } finally {
       setIsSubscribing(false);

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CloseIcon, AlertTriangleIcon } from "@/components/ui/icons";
 import { slugify, slugCollides } from "@/lib/project-slug";
+import { formatChainError } from "@/lib/chain-errors";
 import type { CreateStatus } from "@/hooks/useProjects";
 
 interface CreateProjectModalProps {
@@ -94,9 +95,7 @@ export function CreateProjectModal({
         setStatus(s),
       );
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to create project",
-      );
+      setError(formatChainError(err, "Couldn't create project"));
       setIsSubmitting(false);
       setStatus(null);
     }

@@ -14,6 +14,7 @@ import {
 import { createPlan } from "@/lib/contract";
 import { useProjects } from "@/hooks/useProjects";
 import { encodePlanId, planCheckoutUrl } from "@/lib/plan-id-codec";
+import { formatChainError } from "@/lib/chain-errors";
 
 interface PlansTabProps {
   project: any;
@@ -273,7 +274,7 @@ function CreatePlanForm({
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create plan");
+      setError(formatChainError(err, "Couldn't create plan"));
     } finally {
       setIsSubmitting(false);
       setSubmitStatus("");

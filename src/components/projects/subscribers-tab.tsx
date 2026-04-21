@@ -8,6 +8,7 @@ import { encodePlanId } from "@/lib/plan-id-codec";
 import type { NamedPlan } from "@/hooks/useProjects";
 import { SubscriberDetailModal } from "@/components/projects/subscriber-detail-modal";
 import { cancelSubscription } from "@/lib/contract";
+import { formatChainError } from "@/lib/chain-errors";
 
 interface SubscribersTabProps {
   project: { merchantAddress: string };
@@ -62,7 +63,7 @@ export function SubscribersTab({ project, plans }: SubscribersTabProps) {
       setSelectedId(null);
       refetch();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Cancel failed");
+      alert(formatChainError(err, "Cancel failed"));
     }
   };
 
