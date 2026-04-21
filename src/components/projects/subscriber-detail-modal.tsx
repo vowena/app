@@ -13,10 +13,16 @@ import {
   CircleDotIcon,
 } from "@/components/ui/icons";
 import type { SubscriberRow } from "@/hooks/useProjectSubscribers";
+import { useNowSeconds } from "@/hooks/useNowSeconds";
 import {
   useSubscriptionEvents,
   type SubscriptionEvent,
 } from "@/hooks/useSubscriptionEvents";
+import {
+  buildChargeHistoryRows,
+  useChargeTxs,
+  type ChargeTx,
+} from "@/hooks/useChargeTxs";
 import { encodePlanId } from "@/lib/plan-id-codec";
 
 interface SubscriberDetailModalProps {
@@ -54,6 +60,21 @@ export function SubscriberDetailModal({
   const { data: events, isLoading: eventsLoading } = useSubscriptionEvents(
     isOpen && subscriber ? subscriber.id : null,
   );
+  const now = useNowSeconds();
+  const amountStroops = Number(subscriber?.plan.amount || 0);
+  const until = subscriber
+    ? subscriber.cancelledAt > 0
+      ? subscriber.cancelledAt
+      : undefined
+    : undefined;
+  const { data: chargeTxs, isLoading: chargeTxsLoading } = useChargeTxs({
+    subscriber: subscriber?.subscriber,
+    merchant: subscriber?.plan.merchant,
+    amountStroops,
+    since: subscriber?.createdAt,
+    until,
+    expectedCount: subscriber?.periodsBilled,
+  });
 
   if (!isOpen || !subscriber) return null;
 
@@ -62,7 +83,6 @@ export function SubscriberDetailModal({
     (Number(subscriber.plan.amount) * subscriber.periodsBilled) /
     1e7
   ).toFixed(2);
-  const now = Math.floor(Date.now() / 1000);
   const nextBillingIn = subscriber.nextBillingTime - now;
 
   return (
@@ -150,7 +170,10 @@ export function SubscriberDetailModal({
                 Activity
               </p>
 
-              {eventsLoading ? (
+              {eventsLoading ||
+              (!events?.length &&
+                subscriber.periodsBilled > 0 &&
+                chargeTxsLoading) ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
                     <div
@@ -166,11 +189,18 @@ export function SubscriberDetailModal({
                   ))}
                 </div>
               ) : !events || events.length === 0 ? (
-                <EventTimelineFallback subscriber={subscriber} />
+                <EventTimelineFallback
+                  subscriber={subscriber}
+                  chargeTxs={chargeTxs ?? []}
+                />
               ) : (
                 <ul className="space-y-1">
                   {events.map((ev, i) => (
-                    <EventRow key={`${ev.ledger}-${i}`} event={ev} />
+                    <EventRow
+                      key={`${ev.ledger}-${i}`}
+                      event={ev}
+                      chargeTxs={chargeTxs ?? []}
+                    />
                   ))}
                 </ul>
               )}
@@ -251,11 +281,21 @@ function Stat({
   );
 }
 
-function EventRow({ event }: { event: SubscriptionEvent }) {
+function EventRow({
+  event,
+  chargeTxs,
+}: {
+  event: SubscriptionEvent;
+  chargeTxs: ChargeTx[];
+}) {
   const { label } = formatEvent(event);
   const time = new Date(event.timestamp * 1000);
-  const explorerHref = event.txHash
-    ? `https://stellar.expert/explorer/testnet/tx/${event.txHash}`
+  const matchedTx = event.txHash
+    ? null
+    : findNearestChargeTx(event.timestamp, event.amount, chargeTxs);
+  const txHash = event.txHash ?? matchedTx?.txHash;
+  const explorerHref = txHash
+    ? `https://stellar.expert/explorer/testnet/tx/${txHash}`
     : `https://stellar.expert/explorer/testnet/ledger/${event.ledger}`;
 
   return (
@@ -295,102 +335,85 @@ function EventRow({ event }: { event: SubscriptionEvent }) {
   );
 }
 
-function EventTimelineFallback({ subscriber }: { subscriber: SubscriberRow }) {
-  // RPC retention has rolled past the real events. Synthesize one row per
-  // billed period from on-chain subscription state. Link every row to the
-  // merchant's account on Explorer — that account receives every charge so
-  // its activity feed is the direct view of the actual charge transactions.
-  const href = `https://stellar.expert/explorer/testnet/account/${subscriber.plan.merchant}`;
-  const amount = Number(subscriber.plan.amount);
-  const period = Number(subscriber.plan.period);
-  const trialPeriods = subscriber.plan.trialPeriods ?? 0;
-
-  type Row = {
-    label: string;
-    ts: number;
-    amount?: number;
-    kind: "signup" | "charge" | "cancelled";
-  };
-  const rows: Row[] = [];
-
-  const signupBilled = subscriber.periodsBilled > 0 && trialPeriods === 0;
-  rows.push({
-    label: signupBilled ? "Subscribed & charged" : "Subscribed",
-    ts: subscriber.createdAt,
-    amount: signupBilled ? amount : undefined,
-    kind: "signup",
-  });
-
-  const extraCharges = Math.max(
-    0,
-    subscriber.periodsBilled - (signupBilled ? 1 : 0),
-  );
-  for (let i = 0; i < extraCharges; i++) {
-    rows.push({
-      label: "Charge succeeded",
-      ts: subscriber.createdAt + (i + 1) * period,
-      amount,
-      kind: "charge",
-    });
-  }
-
-  if (subscriber.cancelledAt > 0) {
-    rows.push({
-      label: "Cancelled",
-      ts: subscriber.cancelledAt,
-      kind: "cancelled",
-    });
-  }
-
-  rows.sort((a, b) => b.ts - a.ts);
+function EventTimelineFallback({
+  subscriber,
+  chargeTxs,
+}: {
+  subscriber: SubscriberRow;
+  chargeTxs: ChargeTx[];
+}) {
+  const rows = buildChargeHistoryRows(subscriber, chargeTxs);
+  const exactRows = rows.filter((row) => row.exact).length;
+  const reconstructedChargeRows = rows.filter(
+    (row) => !row.exact && row.amount && row.amount > 0,
+  ).length;
 
   return (
     <div>
       <ul className="space-y-0.5">
         {rows.map((row, i) => {
           const time = new Date(row.ts * 1000);
-          return (
-            <li key={i}>
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex items-center justify-between gap-3 py-3 px-3 -mx-3 rounded-lg hover:bg-surface transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground group-hover:text-accent transition-colors truncate">
-                    {row.label}
+          const body = (
+            <>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground group-hover:text-accent transition-colors truncate">
+                  {row.label}
+                </p>
+                {row.amount != null && row.amount > 0 && (
+                  <p className="text-xs text-muted font-mono mt-0.5">
+                    {(row.amount / 1e7).toFixed(2)} USDC
                   </p>
-                  {row.amount != null && row.amount > 0 && (
-                    <p className="text-xs text-muted font-mono mt-0.5">
-                      {(row.amount / 1e7).toFixed(2)} USDC
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <p className="text-xs text-muted">
-                    {time.toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <p className="text-xs text-muted">
+                  {time.toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </p>
+                {row.href && (
                   <ExternalLinkIcon
                     size={11}
                     className="text-muted group-hover:text-accent transition-colors"
                   />
-                </div>
+                )}
+              </div>
+            </>
+          );
+
+          return (
+            <li key={i}>
+              {row.href ? (
+              <a
+                href={row.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center justify-between gap-3 py-3 px-3 -mx-3 rounded-lg hover:bg-surface transition-colors"
+              >
+                {body}
               </a>
+              ) : (
+                <div className="group flex items-center justify-between gap-3 py-3 px-3 -mx-3">
+                  {body}
+                </div>
+              )}
             </li>
           );
         })}
       </ul>
-      <p className="text-[10px] text-muted mt-4 italic">
-        Live event log past its retention window. Rows are reconstructed from
-        on-chain state and link to the merchant account where the underlying
-        charge transactions are listed.
-      </p>
+      {(exactRows > 0 || reconstructedChargeRows > 0) && (
+        <p className="text-[10px] text-muted mt-4 italic">
+          {exactRows > 0
+            ? "Linked charge rows open the exact Stellar transaction hash."
+            : "Horizon did not return matching payment hashes for these older rows."}{" "}
+          {reconstructedChargeRows > 0
+            ? "Unlinked charge rows are reconstructed from on-chain subscription state."
+            : ""}
+        </p>
+      )}
     </div>
   );
 }
@@ -524,4 +547,24 @@ function formatEvent(event: SubscriptionEvent) {
     icon: <CircleDotIcon size={14} />,
     color: "text-muted",
   };
+}
+
+function findNearestChargeTx(
+  timestamp: number,
+  amount: number | undefined,
+  chargeTxs: ChargeTx[],
+): ChargeTx | undefined {
+  if (!timestamp || chargeTxs.length === 0) return undefined;
+
+  const candidates = chargeTxs
+    .filter((tx) => {
+      if (amount && Math.abs(tx.amountStroops - amount) > 1) return false;
+      return Math.abs(tx.timestamp - timestamp) <= 5 * 60;
+    })
+    .sort(
+      (a, b) =>
+        Math.abs(a.timestamp - timestamp) - Math.abs(b.timestamp - timestamp),
+    );
+
+  return candidates[0];
 }

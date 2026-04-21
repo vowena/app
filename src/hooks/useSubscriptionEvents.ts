@@ -53,7 +53,10 @@ export function useSubscriptionEvents(subId: number | null) {
         const decoded = decodeEvent(raw);
         if (!decoded) continue;
         if (!eventReferencesSubId(decoded, subId)) continue;
-        matched.push(decoded);
+        matched.push({
+          ...decoded,
+          amount: extractAmount(decoded.data, subId),
+        });
       }
 
       return matched.sort((a, b) => b.timestamp - a.timestamp);
@@ -71,6 +74,7 @@ interface DecodedEvent {
   txHash?: string;
   topics: unknown[];
   data: unknown;
+  amount?: number;
 }
 
 function decodeEvent(raw: SorobanRpc.Api.EventResponse): DecodedEvent | null {
@@ -140,4 +144,18 @@ function matches(v: unknown, subId: number): boolean {
   if (Array.isArray(v)) return v.some((x) => matches(x, subId));
   if (typeof v === "string" && /^\d+$/.test(v)) return Number(v) === subId;
   return false;
+}
+
+function extractAmount(v: unknown, subId: number): number | undefined {
+  const values = collectNumbers(v).filter((n) => n > 0 && n !== subId);
+  return values.length > 0 ? values[values.length - 1] : undefined;
+}
+
+function collectNumbers(v: unknown): number[] {
+  if (v == null) return [];
+  if (typeof v === "number") return [v];
+  if (typeof v === "bigint") return [Number(v)];
+  if (Array.isArray(v)) return v.flatMap(collectNumbers);
+  if (typeof v === "string" && /^\d+$/.test(v)) return [Number(v)];
+  return [];
 }

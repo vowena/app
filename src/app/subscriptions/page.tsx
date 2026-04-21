@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { RequireWallet } from "@/components/wallet/require-wallet";
 import { useSubscriptions, type Subscription } from "@/hooks/useSubscriptions";
+import { useNowSeconds } from "@/hooks/useNowSeconds";
 import { SubscriptionModal } from "@/components/subscriptions/subscription-modal";
 import { TopNav } from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
@@ -115,7 +116,7 @@ function SubscriptionCard({
   sub: Subscription;
   onClick: () => void;
 }) {
-  const now = Math.floor(Date.now() / 1000);
+  const now = useNowSeconds();
   const nextBillingIn = sub.nextBillingTime - now;
   const nextBillingDate = new Date(sub.nextBillingTime * 1000);
   const amount = sub.plan?.amount

@@ -4,6 +4,11 @@ import { useMemo } from "react";
 import { useProjectSubscribers } from "@/hooks/useProjectSubscribers";
 import type { NamedPlan } from "@/hooks/useProjects";
 import type { Project } from "@/hooks/useProjects";
+import {
+  buildChargeHistoryRows,
+  filterChargeTxs,
+  useMerchantChargeTxs,
+} from "@/hooks/useChargeTxs";
 import { ExternalLinkIcon } from "@/components/ui/icons";
 
 interface BillingTabProps {
@@ -18,6 +23,8 @@ export function BillingTab({ project, plans }: BillingTabProps) {
     project.merchant,
     plans,
   );
+  const { data: merchantChargeTxs, isLoading: isLoadingChargeTxs } =
+    useMerchantChargeTxs(project.merchant);
 
   const { mrr, totalRevenue, activeCount, failedCount, churnRate } =
     useMemo(() => {
@@ -69,47 +76,44 @@ export function BillingTab({ project, plans }: BillingTabProps) {
       amount: number;
       subscriber: string;
       planName: string;
-      href: string;
+      href?: string;
+      exact: boolean;
       kind: "signup" | "charge";
     };
     const rows: Charge[] = [];
 
     for (const sub of subscribers) {
       const amount = Number(sub.plan.amount);
-      const period = Number(sub.plan.period) || 0;
-      const trial = sub.plan.trialPeriods ?? 0;
       const planName = sub.plan.name || `Plan ${sub.plan.id}`;
-      // Link to the merchant's account on Explorer — merchant receives every
-      // charge, so its activity view lists the actual charge transactions.
-      const href = `https://stellar.expert/explorer/testnet/account/${sub.plan.merchant}`;
-      const signupBilled = sub.periodsBilled > 0 && trial === 0;
+      const matchingTxs = filterChargeTxs(merchantChargeTxs ?? [], {
+        subscriber: sub.subscriber,
+        amountStroops: amount,
+        since: sub.createdAt,
+        until: sub.cancelledAt > 0 ? sub.cancelledAt : undefined,
+        expectedCount: sub.periodsBilled,
+      });
 
-      if (signupBilled) {
+      const chargeRows = buildChargeHistoryRows(sub, matchingTxs).filter(
+        (row) => row.amount && row.amount > 0,
+      );
+      for (const row of chargeRows) {
         rows.push({
-          ts: sub.createdAt,
-          amount,
+          ts: row.ts,
+          amount: row.amount ?? amount,
           subscriber: sub.subscriber,
           planName,
-          href,
-          kind: "signup",
-        });
-      }
-
-      const extras = Math.max(0, sub.periodsBilled - (signupBilled ? 1 : 0));
-      for (let i = 0; i < extras; i++) {
-        rows.push({
-          ts: sub.createdAt + (i + 1) * period,
-          amount,
-          subscriber: sub.subscriber,
-          planName,
-          href,
-          kind: "charge",
+          href: row.href,
+          exact: row.exact,
+          kind: row.kind === "signup" ? "signup" : "charge",
         });
       }
     }
 
     return rows.sort((a, b) => b.ts - a.ts);
-  }, [subscribers]);
+  }, [merchantChargeTxs, subscribers]);
+  const linkedChargeCount = chargeFeed.filter((row) => row.exact).length;
+  const isResolvingChargeTxs =
+    !!subscribers && subscribers.length > 0 && isLoadingChargeTxs;
 
   const stats = [
     {
@@ -176,16 +180,16 @@ export function BillingTab({ project, plans }: BillingTabProps) {
               Recent charges
             </h3>
             <p className="text-[11px] text-muted mt-0.5">
-              Newest first. Each row links to the underlying charge transaction
-              on Stellar Explorer.
+              Newest first. Linked rows open the exact Stellar transaction
+              hash.
             </p>
           </div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted tabular-nums">
-            {chargeFeed.length} total
+            {linkedChargeCount}/{chargeFeed.length} linked
           </p>
         </div>
 
-        {isLoading ? (
+        {isLoading || isResolvingChargeTxs ? (
           <ChargeFeedSkeleton />
         ) : chargeFeed.length === 0 ? (
           <div className="px-6 py-12 text-center">
@@ -197,61 +201,90 @@ export function BillingTab({ project, plans }: BillingTabProps) {
           </div>
         ) : (
           <ul className="divide-y divide-border-subtle">
-            {chargeFeed.map((row, i) => {
-              const time = new Date(row.ts * 1000);
-              return (
-                <li key={i}>
-                  <a
-                    href={row.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-center justify-between gap-4 px-6 py-3.5 hover:bg-surface/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-8 h-8 rounded-md bg-accent-subtle flex items-center justify-center text-accent font-semibold text-[11px] shrink-0">
-                        {row.subscriber.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground group-hover:text-accent transition-colors truncate">
-                          {row.kind === "signup"
-                            ? "Subscribed & charged"
-                            : "Charge succeeded"}
-                          <span className="text-muted font-normal">
-                            {" · "}
-                            {row.planName}
-                          </span>
-                        </p>
-                        <p className="text-[11px] text-muted font-mono mt-0.5 truncate">
-                          {row.subscriber.slice(0, 6)}…
-                          {row.subscriber.slice(-4)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="tabular-nums font-mono text-sm text-foreground">
-                        {(row.amount / 1e7).toFixed(2)} USDC
-                      </span>
-                      <p className="text-xs text-muted tabular-nums">
-                        {time.toLocaleString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                      <ExternalLinkIcon
-                        size={11}
-                        className="text-muted group-hover:text-accent transition-colors"
-                      />
-                    </div>
-                  </a>
-                </li>
-              );
-            })}
+            {chargeFeed.map((row, i) => (
+              <ChargeFeedRow key={i} row={row} />
+            ))}
           </ul>
         )}
       </div>
     </div>
+  );
+}
+
+function ChargeFeedRow({
+  row,
+}: {
+  row: {
+    ts: number;
+    amount: number;
+    subscriber: string;
+    planName: string;
+    href?: string;
+    exact: boolean;
+    kind: "signup" | "charge";
+  };
+}) {
+  const time = new Date(row.ts * 1000);
+  const body = (
+    <>
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="w-8 h-8 rounded-md bg-accent-subtle flex items-center justify-center text-accent font-semibold text-[11px] shrink-0">
+          {row.subscriber.slice(0, 2).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground group-hover:text-accent transition-colors truncate">
+            {row.kind === "signup"
+              ? "Subscribed & charged"
+              : "Charge succeeded"}
+            <span className="text-muted font-normal">
+              {" · "}
+              {row.planName}
+            </span>
+          </p>
+          <p className="text-[11px] text-muted font-mono mt-0.5 truncate">
+            {row.subscriber.slice(0, 6)}…{row.subscriber.slice(-4)}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="tabular-nums font-mono text-sm text-foreground">
+          {(row.amount / 1e7).toFixed(2)} USDC
+        </span>
+        <p className="text-xs text-muted tabular-nums">
+          {time.toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </p>
+        {row.href && (
+          <ExternalLinkIcon
+            size={11}
+            className="text-muted group-hover:text-accent transition-colors"
+          />
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <li>
+      {row.href ? (
+        <a
+          href={row.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex items-center justify-between gap-4 px-6 py-3.5 hover:bg-surface/50 transition-colors"
+        >
+          {body}
+        </a>
+      ) : (
+        <div className="group flex items-center justify-between gap-4 px-6 py-3.5">
+          {body}
+        </div>
+      )}
+    </li>
   );
 }
 

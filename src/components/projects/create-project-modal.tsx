@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CloseIcon, AlertTriangleIcon } from "@/components/ui/icons";
-import { slugify, slugCollides } from "@/lib/project-slug";
 import { formatChainError } from "@/lib/chain-errors";
 import type { CreateStatus } from "@/hooks/useProjects";
 

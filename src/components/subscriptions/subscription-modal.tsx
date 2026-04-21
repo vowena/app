@@ -2,10 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { Subscription } from "@/hooks/useSubscriptions";
+import { useNowSeconds } from "@/hooks/useNowSeconds";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { encodePlanId } from "@/lib/plan-id-codec";
 import { useSubscriptionEvents } from "@/hooks/useSubscriptionEvents";
+import {
+  buildChargeHistoryRows,
+  useChargeTxs,
+  type ChargeHistoryRow,
+  type ChargeTx,
+} from "@/hooks/useChargeTxs";
 import {
   CloseIcon,
   CopyIcon,
@@ -30,6 +37,7 @@ export function SubscriptionModal({
     "overview" | "history" | "details"
   >("overview");
   const [isLoading, setIsLoading] = useState(false);
+  const now = useNowSeconds();
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -53,7 +61,6 @@ export function SubscriptionModal({
 
   if (!isOpen || !subscription) return null;
 
-  const now = Math.floor(Date.now() / 1000);
   const nextBillingIn = subscription.nextBillingTime - now;
   const nextBillingCountdown = formatDuration(Math.abs(nextBillingIn));
 
@@ -339,8 +346,25 @@ function formatDuration(seconds: number): string {
 
 function SubHistoryView({ subscription }: { subscription: Subscription }) {
   const { data: events, isLoading } = useSubscriptionEvents(subscription.id);
+  const amountStroops = Number(subscription.plan?.amount || 0);
+  const merchant = subscription.plan?.merchant;
+  const until =
+    subscription.cancelledAt > 0 ? subscription.cancelledAt : undefined;
+  const shouldResolveChargeTxs =
+    subscription.periodsBilled > 0 && amountStroops > 0 && !!merchant;
+  const { data: chargeTxs, isLoading: isLoadingChargeTxs } = useChargeTxs({
+    subscriber: subscription.subscriber,
+    merchant,
+    amountStroops,
+    since: subscription.createdAt,
+    until,
+    expectedCount: subscription.periodsBilled,
+  });
 
-  if (isLoading) {
+  if (
+    isLoading ||
+    (!events?.length && shouldResolveChargeTxs && isLoadingChargeTxs)
+  ) {
     return (
       <div className="space-y-3">
         {[1, 2, 3].map((i) => (
@@ -357,10 +381,12 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
   }
 
   if (!events || events.length === 0) {
-    // RPC retention has rolled past the actual events. Synthesize a row PER
-    // billed period so users see every charge as its own entry, not a
-    // consolidated "N additional charges" lump.
-    const items = synthesizeEntries(subscription);
+    const items = buildChargeHistoryRows(subscription, chargeTxs ?? []);
+    const exactRows = items.filter((item) => item.exact).length;
+    const reconstructedChargeRows = items.filter(
+      (item) => !item.exact && item.amount && item.amount > 0,
+    ).length;
+
     return (
       <div>
         <ul className="space-y-0.5">
@@ -383,11 +409,16 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
             </li>
           ))}
         </ul>
-        <p className="text-[10px] text-muted mt-4 italic">
-          Live event log was past its retention window. Rows are reconstructed
-          from on-chain state and link to the merchant account where the
-          underlying charge transactions are listed.
-        </p>
+        {(exactRows > 0 || reconstructedChargeRows > 0) && (
+          <p className="text-[10px] text-muted mt-4 italic">
+            {exactRows > 0
+              ? "Linked charge rows open the exact Stellar transaction hash."
+              : "Horizon did not return matching payment hashes for these older rows."}{" "}
+            {reconstructedChargeRows > 0
+              ? "Unlinked charge rows are reconstructed from on-chain subscription state."
+              : ""}
+          </p>
+        )}
       </div>
     );
   }
@@ -396,8 +427,12 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
     <ul className="space-y-0.5">
       {events.map((ev, i) => {
         const time = new Date(ev.timestamp * 1000);
-        const explorerHref = ev.txHash
-          ? `https://stellar.expert/explorer/testnet/tx/${ev.txHash}`
+        const matchedTx = ev.txHash
+          ? null
+          : findNearestChargeTx(ev.timestamp, ev.amount, chargeTxs ?? []);
+        const txHash = ev.txHash ?? matchedTx?.txHash;
+        const explorerHref = txHash
+          ? `https://stellar.expert/explorer/testnet/tx/${txHash}`
           : `https://stellar.expert/explorer/testnet/ledger/${ev.ledger}`;
         const label = humanizeEventType(ev.type);
         return (
@@ -440,72 +475,7 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
   );
 }
 
-interface SynthEntry {
-  label: string;
-  ts: number;
-  amount?: number;
-  href?: string;
-  /** "signup", "charge", "cancelled" — lets the row show a subtle type chip */
-  kind: "signup" | "charge" | "cancelled";
-}
-
-/**
- * When RPC event retention has rolled past the real events we can still give
- * the subscriber a row-per-charge view by walking `periodsBilled`. Each row
- * links to the subscriber's account on Stellar Explorer so they can inspect
- * the underlying transaction.
- */
-function synthesizeEntries(subscription: Subscription): SynthEntry[] {
-  // Link fallback to the merchant's account on Explorer — that account
-  // receives every charge, so its activity feed is the most direct view of
-  // the actual charge transactions when the specific tx hashes aren't in
-  // scope anymore.
-  const merchant = subscription.plan?.merchant;
-  const href = merchant
-    ? `https://stellar.expert/explorer/testnet/account/${merchant}`
-    : undefined;
-  const amount = Number(subscription.plan?.amount || 0);
-  const period = Number(subscription.plan?.period || 0);
-  const entries: SynthEntry[] = [];
-
-  const trialPeriods = subscription.plan?.trialPeriods ?? 0;
-  const signupBilled = subscription.periodsBilled > 0 && trialPeriods === 0;
-  entries.push({
-    label: signupBilled ? "Subscribed & charged" : "Subscribed",
-    ts: subscription.createdAt,
-    amount: signupBilled ? amount : undefined,
-    href,
-    kind: "signup",
-  });
-
-  const extraCharges = Math.max(
-    0,
-    subscription.periodsBilled - (signupBilled ? 1 : 0),
-  );
-  for (let i = 0; i < extraCharges; i++) {
-    const ts = subscription.createdAt + (i + 1) * period;
-    entries.push({
-      label: "Charge succeeded",
-      ts,
-      amount,
-      href,
-      kind: "charge",
-    });
-  }
-
-  if (subscription.cancelledAt > 0) {
-    entries.push({
-      label: "Cancelled",
-      ts: subscription.cancelledAt,
-      href,
-      kind: "cancelled",
-    });
-  }
-
-  return entries.sort((a, b) => b.ts - a.ts);
-}
-
-function SynthRowBody({ item }: { item: SynthEntry }) {
+function SynthRowBody({ item }: { item: ChargeHistoryRow }) {
   const time = new Date(item.ts * 1000);
   return (
     <>
@@ -552,4 +522,24 @@ function humanizeEventType(t: string): string {
   if (lower.includes("expired")) return "Expired";
   if (lower.includes("refund")) return "Refund issued";
   return t || "Event";
+}
+
+function findNearestChargeTx(
+  timestamp: number,
+  amount: number | undefined,
+  chargeTxs: ChargeTx[],
+): ChargeTx | undefined {
+  if (!timestamp || chargeTxs.length === 0) return undefined;
+
+  const candidates = chargeTxs
+    .filter((tx) => {
+      if (amount && Math.abs(tx.amountStroops - amount) > 1) return false;
+      return Math.abs(tx.timestamp - timestamp) <= 5 * 60;
+    })
+    .sort(
+      (a, b) =>
+        Math.abs(a.timestamp - timestamp) - Math.abs(b.timestamp - timestamp),
+    );
+
+  return candidates[0];
 }

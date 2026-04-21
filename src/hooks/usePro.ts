@@ -31,14 +31,25 @@ export function usePro() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!address) {
-      setIsPro(false);
+    let mounted = true;
+
+    queueMicrotask(() => {
+      if (!mounted) return;
+
+      if (!address) {
+        setIsPro(false);
+        setIsLoading(false);
+        return;
+      }
+
+      const state = readState();
+      setIsPro(!!state[address]);
       setIsLoading(false);
-      return;
-    }
-    const state = readState();
-    setIsPro(!!state[address]);
-    setIsLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+    };
   }, [address]);
 
   const activate = useCallback(() => {

@@ -28,20 +28,34 @@ const TABS = [
   { id: "integrate", label: "Integrate", Icon: IntegrateIcon },
 ];
 
+function readCollapsed(projectId: number): boolean {
+  try {
+    const saved = localStorage.getItem(
+      `vowena:project:${projectId}:sidebar-collapsed`,
+    );
+    return saved ? JSON.parse(saved) : false;
+  } catch {
+    return false;
+  }
+}
+
 export function ProjectSidebar({
   project,
   activeTab,
   onTabChange,
 }: ProjectSidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() =>
+    readCollapsed(project.id),
+  );
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(
-        `vowena:project:${project.id}:sidebar-collapsed`,
-      );
-      if (saved) setIsCollapsed(JSON.parse(saved));
-    } catch {}
+    let mounted = true;
+    queueMicrotask(() => {
+      if (mounted) setIsCollapsed(readCollapsed(project.id));
+    });
+    return () => {
+      mounted = false;
+    };
   }, [project.id]);
 
   const handleToggle = () => {

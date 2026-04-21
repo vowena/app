@@ -12,13 +12,13 @@ import {
   ExternalLinkIcon,
 } from "@/components/ui/icons";
 import { createPlan } from "@/lib/contract";
-import { useProjects } from "@/hooks/useProjects";
+import { useProjects, type NamedPlan, type Project } from "@/hooks/useProjects";
 import { encodePlanId, planCheckoutUrl } from "@/lib/plan-id-codec";
 import { formatChainError } from "@/lib/chain-errors";
 
 interface PlansTabProps {
-  project: any;
-  plans: any[];
+  project: Project;
+  plans: NamedPlan[];
   isLoading: boolean;
   onCreated?: () => void;
 }
@@ -96,7 +96,7 @@ export function PlansTab({
   );
 }
 
-function PlanCard({ plan }: { plan: any }) {
+function PlanCard({ plan }: { plan: NamedPlan }) {
   const [copiedId, setCopiedId] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const amount = (Number(plan.amount) / 1e7).toFixed(2);

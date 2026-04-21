@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import {
@@ -28,7 +28,7 @@ export type CreateStatus = "preparing" | "signing" | "submitting" | "done";
 export function useProjects() {
   const { address } = useWallet();
   const queryClient = useQueryClient();
-  const queryKey = ["projects", address];
+  const queryKey = useMemo(() => ["projects", address] as const, [address]);
 
   const query = useQuery({
     queryKey,
