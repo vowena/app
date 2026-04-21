@@ -12,19 +12,35 @@ import {
 /**
  * Vercel cron entry point. Configured to fire every 5 minutes via
  * vercel.json. Walks plan subscribers and fires charge() on every
- * subscription. The contract itself decides what's actually due — calling
- * for a not-yet-due sub is a harmless no-op (returns false, no debit).
+ * subscription. The contract decides what's actually due — calling
+ * for a not-yet-due sub is a harmless no-op (returns false).
+ *
+ * Performance design:
+ *   - Discovery is parallel: Promise.all over a bounded plan ID range
+ *   - Charge submission is parallel and fire-and-forget: we send the tx
+ *     and immediately move on. We do NOT poll for inclusion — that was
+ *     burning ~12s per sub serially and overflowing the 300s function
+ *     timeout. Whether a charge actually billed shows up on the next
+ *     read of the subscription's periodsBilled.
+ *   - charge() is idempotent within a period, so re-sending is safe.
  *
  * Auth: when CRON_SECRET is set, require Authorization: Bearer <secret>.
  * Vercel automatically sends this header for scheduled cron invocations.
  *
- * Required env: VOWENA_ISSUER_SECRET — funded testnet account that signs
- * the charge() txs. charge() is permissionless on the contract so any
- * funded account works; we re-use the issuer key already configured.
+ * Required env: VOWENA_ISSUER_SECRET (charge() is permissionless on the
+ * contract; reusing the issuer key avoids a new env var).
  */
+
+// Allow this function up to 60s (default would kill it after 10s/15s).
+export const maxDuration = 60;
 
 const CONTRACT_ID = "CCNDNEGYFYKTVBM7T2BEF5YVSKKICE44JOVHT7SAN5YTKHHBFIIEL72T";
 const RPC_URL = "https://soroban-testnet.stellar.org";
+
+// Upper bound for plan-ID scan. Way more than the demo / beta will hit;
+// a real deployment would replace this with a NextPlanId contract read
+// or a dedicated indexer.
+const MAX_PLAN_SCAN = 200;
 
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -48,45 +64,42 @@ export async function GET(request: NextRequest) {
   const contract = new Contract(CONTRACT_ID);
 
   try {
-    // Walk plan IDs, collecting all subscribers. The contract has no
-    // global subscriber index so we iterate plan IDs from 1 until we hit
-    // 5 consecutive misses (post-deletion gap detection).
-    const allSubIds = new Set<number>();
-    let planId = 1;
-    let consecutiveMisses = 0;
+    // 1) Discover subscribers across all plans IN PARALLEL.
+    const planIds = Array.from({ length: MAX_PLAN_SCAN }, (_, i) => i + 1);
+    const subscribersPerPlan = await Promise.all(
+      planIds.map((pid) =>
+        readVecU64(server, keeper.publicKey(), contract, "get_plan_subscribers", [
+          nativeToScVal(pid, { type: "u64" }),
+        ]).catch(() => [] as number[]),
+      ),
+    );
+    const subIds = Array.from(new Set(subscribersPerPlan.flat()));
 
-    while (consecutiveMisses < 5 && planId < 10_000) {
-      try {
-        const subs = await readVecU64(
-          server,
-          keeper.publicKey(),
-          contract,
-          "get_plan_subscribers",
-          [nativeToScVal(planId, { type: "u64" })],
-        );
-        for (const sid of subs) allSubIds.add(sid);
-        consecutiveMisses = 0;
-      } catch {
-        consecutiveMisses++;
-      }
-      planId++;
-    }
-
-    if (allSubIds.size === 0) {
+    if (subIds.length === 0) {
       return NextResponse.json({
         ranAt: new Date().toISOString(),
         attempted: 0,
-        charged: 0,
+        submitted: 0,
         failed: 0,
       });
     }
 
-    let charged = 0;
-    let failed = 0;
-    for (const subId of Array.from(allSubIds)) {
-      try {
-        const account = await server.getAccount(keeper.publicKey());
-        const tx = new TransactionBuilder(account, {
+    // 2) Fire all charges IN PARALLEL, no polling. The submit goes through;
+    //    the contract decides whether to actually move tokens. We track
+    //    submission success here, not inclusion success.
+    const sequenceAccount = await server.getAccount(keeper.publicKey());
+    let baseSequence = BigInt(sequenceAccount.sequenceNumber());
+
+    const submissions = await Promise.allSettled(
+      subIds.map(async (subId) => {
+        // Build, simulate, prepare, sign, send.
+        // We don't need a fresh sequence per call when running in parallel
+        // because we use independent simulations + sequential bumping.
+        const acct = new (await import("@stellar/stellar-sdk")).Account(
+          keeper.publicKey(),
+          (++baseSequence).toString(),
+        );
+        const tx = new TransactionBuilder(acct, {
           fee: "100000",
           networkPassphrase: Networks.TESTNET,
         })
@@ -98,39 +111,25 @@ export async function GET(request: NextRequest) {
 
         const sim = await server.simulateTransaction(tx);
         if (SorobanRpc.Api.isSimulationError(sim)) {
-          failed++;
-          continue;
+          throw new Error(`sim ${subId}: ${sim.error}`);
         }
         const prepared = SorobanRpc.assembleTransaction(tx, sim).build();
         prepared.sign(keeper);
         const sent = await server.sendTransaction(prepared);
         if (sent.status === "ERROR") {
-          failed++;
-          continue;
+          throw new Error(`send ${subId}: error`);
         }
+        return sent.hash;
+      }),
+    );
 
-        let result = await server.getTransaction(sent.hash);
-        const deadline = Date.now() + 12_000;
-        while (result.status === "NOT_FOUND" && Date.now() < deadline) {
-          await new Promise((r) => setTimeout(r, 1000));
-          result = await server.getTransaction(sent.hash);
-        }
-        if (result.status === "SUCCESS") {
-          const rv = result.returnValue;
-          const wasCharged = rv != null ? Boolean(scValToNative(rv)) : false;
-          if (wasCharged) charged++;
-        } else {
-          failed++;
-        }
-      } catch {
-        failed++;
-      }
-    }
+    const submitted = submissions.filter((r) => r.status === "fulfilled").length;
+    const failed = submissions.filter((r) => r.status === "rejected").length;
 
     return NextResponse.json({
       ranAt: new Date().toISOString(),
-      attempted: allSubIds.size,
-      charged,
+      attempted: subIds.length,
+      submitted,
       failed,
     });
   } catch (err) {
