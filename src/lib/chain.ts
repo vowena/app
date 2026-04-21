@@ -6,7 +6,7 @@ import {
   type Subscription as SdkSubscription,
 } from "@vowena/sdk";
 
-const CONTRACT_ID = "CDBR7AP5PPIIBUW5NUQ4PTZ2SY35ATNIGBLXT6CJYPILIPPZ5YN5KBSR";
+const CONTRACT_ID = "CDVNTA6K6YX6YWD7LAFGIVDXVIDGUB3P7EQ3EU6V3XLMQEZ5SAIGH66Z";
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const PASSPHRASE = "Test SDF Network ; September 2015";
 
@@ -42,6 +42,8 @@ export interface ChainPlan {
   active: boolean;
   /** Display name set on chain by the merchant */
   name: string;
+  /** Which project slot this plan belongs to (0-based) */
+  projectSlot: number;
 }
 
 export interface ChainSubscription {
@@ -71,6 +73,7 @@ function normalizePlan(plan: SdkPlan): ChainPlan {
     createdAt: Number(plan.createdAt),
     active: Boolean(plan.active),
     name: plan.name ?? "",
+    projectSlot: Number(plan.projectSlot ?? 0),
   };
 }
 

@@ -77,8 +77,7 @@ function ProjectDashboardView() {
       try {
         const data = await getProjectPlansWithData(
           project.merchantAddress,
-          project.planIds,
-          project.planNames,
+          project.slot,
         );
         if (!cancelled) setPlans(data);
       } catch (e) {

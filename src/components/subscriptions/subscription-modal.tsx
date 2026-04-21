@@ -363,7 +363,6 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
       label: string;
       ts: number;
       amount?: number;
-      tone: "success" | "info" | "error" | "muted";
     }> = [
       {
         label: "Subscribed",
@@ -372,7 +371,6 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
           subscription.periodsBilled > 0
             ? Number(subscription.plan?.amount || 0)
             : undefined,
-        tone: "success",
       },
     ];
     if (subscription.periodsBilled > 1) {
@@ -382,42 +380,37 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
         amount:
           (subscription.periodsBilled - 1) *
           Number(subscription.plan?.amount || 0),
-        tone: "info",
       });
     }
     if (subscription.cancelledAt > 0) {
       synth.push({
         label: "Cancelled",
         ts: subscription.cancelledAt,
-        tone: "error",
       });
     }
     return (
       <div>
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {synth.map((s, i) => (
-            <li key={i} className="flex items-start gap-3 py-2">
-              <CircleIcon tone={s.tone} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-sm font-medium text-foreground">
-                    {s.label}
-                  </p>
-                  <p className="text-xs text-muted shrink-0">
-                    {new Date(s.ts * 1000).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
+            <li key={i} className="flex items-center justify-between gap-3 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {s.label}
+                </p>
                 {s.amount != null && s.amount > 0 && (
-                  <p className="text-xs text-muted mt-0.5 font-mono">
+                  <p className="text-xs text-muted font-mono mt-0.5">
                     {(s.amount / 1e7).toFixed(2)} USDC
                   </p>
                 )}
               </div>
+              <p className="text-xs text-muted shrink-0">
+                {new Date(s.ts * 1000).toLocaleString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </p>
             </li>
           ))}
         </ul>
@@ -430,7 +423,7 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
   }
 
   return (
-    <ul className="space-y-1">
+    <ul className="space-y-0.5">
       {events.map((ev, i) => {
         const time = new Date(ev.timestamp * 1000);
         const explorerHref = ev.txHash
@@ -438,15 +431,25 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
           : `https://stellar.expert/explorer/testnet/ledger/${ev.ledger}`;
         const label = humanizeEventType(ev.type);
         return (
-          <li
-            key={`${ev.ledger}-${i}`}
-            className="group flex items-start gap-3 py-2"
-          >
-            <CircleIcon tone={eventTone(ev.type)} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-sm font-medium text-foreground">{label}</p>
-                <p className="text-xs text-muted shrink-0">
+          <li key={`${ev.ledger}-${i}`}>
+            <a
+              href={explorerHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center justify-between gap-3 py-3 px-3 -mx-3 rounded-lg hover:bg-surface transition-colors"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground group-hover:text-accent transition-colors truncate">
+                  {label}
+                </p>
+                {ev.amount != null && ev.amount > 0 && (
+                  <p className="text-xs text-muted font-mono mt-0.5">
+                    {(ev.amount / 1e7).toFixed(2)} USDC
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <p className="text-xs text-muted">
                   {time.toLocaleString(undefined, {
                     month: "short",
                     day: "numeric",
@@ -454,48 +457,16 @@ function SubHistoryView({ subscription }: { subscription: Subscription }) {
                     minute: "2-digit",
                   })}
                 </p>
+                <ExternalLinkIcon
+                  size={11}
+                  className="text-muted group-hover:text-accent transition-colors"
+                />
               </div>
-              <div className="flex items-baseline justify-between gap-3 mt-0.5">
-                {ev.amount != null && ev.amount > 0 ? (
-                  <p className="text-xs text-muted font-mono">
-                    {(ev.amount / 1e7).toFixed(2)} USDC
-                  </p>
-                ) : (
-                  <span />
-                )}
-                <a
-                  href={explorerHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] font-medium text-muted hover:text-accent inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                >
-                  View on Explorer
-                  <ExternalLinkIcon size={9} />
-                </a>
-              </div>
-            </div>
+            </a>
           </li>
         );
       })}
     </ul>
-  );
-}
-
-function CircleIcon({
-  tone,
-}: {
-  tone: "success" | "info" | "error" | "muted";
-}) {
-  const cls =
-    tone === "success"
-      ? "bg-success"
-      : tone === "info"
-        ? "bg-accent"
-        : tone === "error"
-          ? "bg-error"
-          : "bg-muted";
-  return (
-    <span className={`w-2 h-2 rounded-full mt-2 shrink-0 ${cls}`} />
   );
 }
 
@@ -512,18 +483,4 @@ function humanizeEventType(t: string): string {
   if (lower.includes("expired")) return "Expired";
   if (lower.includes("refund")) return "Refund issued";
   return t || "Event";
-}
-
-function eventTone(t: string): "success" | "info" | "error" | "muted" {
-  const lower = t.toLowerCase();
-  if (lower.includes("failed") || lower.includes("cancelled")) return "error";
-  if (lower.includes("paused") || lower.includes("expired")) return "muted";
-  if (
-    lower.includes("success") ||
-    lower.includes("subscribed") ||
-    lower.includes("created") ||
-    lower.includes("reactivated")
-  )
-    return "success";
-  return "info";
 }

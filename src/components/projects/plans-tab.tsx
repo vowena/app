@@ -218,7 +218,7 @@ function CreatePlanForm({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const { tagAndNamePlan, refetch } = useProjects();
+  const { refetch } = useProjects();
   const [name, setName] = useState("");
   const [token, setToken] = useState(TUSDC_SAC);
   const [amount, setAmount] = useState("");
@@ -230,9 +230,7 @@ function CreatePlanForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [submitStatus, setSubmitStatus] = useState<"" | "creating" | "tagging">(
-    "",
-  );
+  const [submitStatus, setSubmitStatus] = useState<"" | "creating">("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,12 +241,10 @@ function CreatePlanForm({
       const ceiling = priceCeiling ? parseFloat(priceCeiling) : amt * 2;
       const planName = name.trim();
 
-      // Single signature flow. The contract's create_plan takes the name
-      // directly, so we don't need a second ManageData tx for naming. The
-      // project-tag op is done lazily and silently in the background — the
-      // user is already done by then.
+      // Truly single signature: contract takes name + project_slot directly.
+      // No more second ManageData op, no more "fire-and-forget" wallet popup.
       setSubmitStatus("creating");
-      const result = await createPlan({
+      await createPlan({
         merchant: merchantAddress,
         token,
         amountUsdc: amt,
@@ -258,21 +254,11 @@ function CreatePlanForm({
         gracePeriod: parseInt(gracePeriod),
         priceCeilingUsdc: ceiling,
         name: planName,
+        projectSlot,
       });
 
       await refetch();
       onSuccess();
-
-      // Best-effort, fire-and-forget: tag plan_id to this project for
-      // multi-project filtering. Doesn't block the UX. Triggers a 2nd
-      // signature only if the project has 2+ projects existing AND the
-      // user accepts; otherwise the plan still works via merchant lookup.
-      const planId = extractPlanId(result);
-      if (planId != null) {
-        tagAndNamePlan(planId, projectSlot, planName).catch((err) => {
-          console.warn("Background project-tagging failed (non-fatal):", err);
-        });
-      }
     } catch (err) {
       setError(formatChainError(err, "Couldn't create plan"));
     } finally {
@@ -428,11 +414,9 @@ function CreatePlanForm({
         >
           {submitStatus === "creating"
             ? "Creating plan on chain…"
-            : submitStatus === "tagging"
-              ? "Saving to project…"
-              : isSubmitting
-                ? "Signing…"
-                : "Create plan"}
+            : isSubmitting
+              ? "Signing…"
+              : "Create plan"}
         </Button>
       </div>
     </form>
@@ -460,28 +444,6 @@ function Field({
       {hint && <p className="text-[10px] text-muted mt-1">{hint}</p>}
     </div>
   );
-}
-
-/**
- * Pull the plan ID (u64) out of a Vowena contract create_plan submit result.
- * The SDK returns `returnValue` which may be a number, bigint, or an ScVal-like
- * object depending on the submission path. Handle all of them.
- */
-function extractPlanId(result: unknown): number | null {
-  try {
-    const r = result as { returnValue?: unknown };
-    const v = r?.returnValue;
-    if (v == null) return null;
-    if (typeof v === "number") return v;
-    if (typeof v === "bigint") return Number(v);
-    if (typeof v === "string" && /^\d+$/.test(v)) return Number(v);
-    const maybe = v as { toBigInt?: () => bigint; u64?: () => bigint };
-    if (typeof maybe?.toBigInt === "function") return Number(maybe.toBigInt());
-    if (typeof maybe?.u64 === "function") return Number(maybe.u64());
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 function PlansSkeleton() {

@@ -171,41 +171,31 @@ export function useProjects() {
 }
 
 /**
- * Fetch all plans for a project from the Vowena contract.
+ * Fetch all plans belonging to a specific project.
  *
- * The set of plan IDs comes from two sources, in priority order:
- *   1. planIds explicitly tagged to this project in account data
- *   2. all plans owned by the merchant (covers plans created in single-sig
- *      mode where the project tag write was skipped or hasn't propagated)
- *
- * For displayed names, the new contract carries `plan.name` directly — that
- * always wins. The legacy account-data planNames map is only used as a
- * fallback for plans created with the old contract (which had no name field).
+ * Filters merchant's plans by plan.projectSlot — this is the on-chain
+ * project_slot field set when the plan was created. No off-chain tagging
+ * needed: every plan natively knows its project.
  */
 export async function getProjectPlansWithData(
   merchantAddress: string,
-  planIds: number[] = [],
-  planNames: Record<number, string> = {},
+  projectSlot: number,
 ): Promise<NamedPlan[]> {
   try {
     const { getMerchantPlans } = await import("@/lib/chain");
     const allMerchantIds = await getMerchantPlans(merchantAddress);
-
-    // Union of explicitly-tagged plan IDs and all-merchant plan IDs
-    const ids = Array.from(new Set([...planIds, ...allMerchantIds]));
-    if (ids.length === 0) return [];
+    if (allMerchantIds.length === 0) return [];
 
     const plans = await Promise.all(
-      ids.map((id) => getPlan(id, merchantAddress).catch(() => null)),
+      allMerchantIds.map((id) =>
+        getPlan(id, merchantAddress).catch(() => null),
+      ),
     );
+
     return plans
       .filter((p): p is NonNullable<typeof p> => p !== null)
-      .map((p) => ({
-        ...p,
-        // Prefer the on-chain name from the contract; fall back to legacy
-        // account-data name; finally degrade to whatever the SDK returned.
-        name: p.name && p.name.length > 0 ? p.name : planNames[p.id],
-      }));
+      .filter((p) => p.projectSlot === projectSlot)
+      .map((p) => ({ ...p }));
   } catch (error) {
     console.error("Failed to fetch project plans:", error);
     return [];
