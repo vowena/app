@@ -86,7 +86,7 @@ export function PlansTab({
           </Button>
         </div>
       ) : plans.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+        <div className="space-y-3">
           {plans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} />
           ))}
@@ -116,72 +116,70 @@ function PlanCard({ plan }: { plan: any }) {
     setTimeout(() => setCopiedLink(false), 1500);
   };
 
+  const trialDays = Math.round(
+    ((plan.trialPeriods || 0) * plan.period) / 86_400,
+  );
+
   return (
-    <div className="rounded-xl border border-border bg-elevated p-6 group flex flex-col">
-      <div className="flex items-start justify-between mb-5 gap-3">
+    <div className="rounded-xl border border-border bg-elevated p-5 sm:p-6 group">
+      <div className="flex items-center justify-between gap-4">
+        {/* Left: name + price + meta */}
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-foreground tracking-tight truncate mb-1">
-            {displayName}
-          </h3>
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-base font-semibold text-foreground tracking-tight truncate">
+              {displayName}
+            </h3>
+            <Badge variant={plan.active ? "active" : "expired"}>
+              {plan.active ? "Active" : "Inactive"}
+            </Badge>
+          </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-semibold text-foreground tabular-nums tracking-tight">
+            <span className="text-xl sm:text-2xl font-semibold text-foreground tabular-nums tracking-tight">
               {amount}
             </span>
             <span className="text-xs text-muted font-mono">USDC</span>
-          </div>
-          <p className="text-xs text-muted mt-0.5">
-            every {formatPeriodFriendly(plan.period)}
-          </p>
-        </div>
-        <Badge variant={plan.active ? "active" : "expired"}>
-          {plan.active ? "Active" : "Inactive"}
-        </Badge>
-      </div>
-
-      <div className="space-y-1.5 text-xs mb-5 pb-5 border-b border-border-subtle">
-        <Row
-          label="Trial"
-          value={`${plan.trialPeriods} period${plan.trialPeriods !== 1 ? "s" : ""}`}
-        />
-        <Row
-          label="Max periods"
-          value={plan.maxPeriods > 0 ? plan.maxPeriods.toString() : "Unlimited"}
-        />
-        <Row label="Grace" value={`${plan.gracePeriod}s`} />
-        <Row
-          label="Ceiling"
-          value={`${(Number(plan.priceCeiling) / 1e7).toFixed(2)} USDC`}
-        />
-      </div>
-
-      <div className="space-y-2 mt-auto">
-        <button
-          onClick={handleCopyLink}
-          className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-accent-subtle text-accent hover:bg-accent hover:text-white transition-colors text-xs font-medium"
-        >
-          <span className="flex items-center gap-2">
-            {copiedLink ? (
-              <CheckIcon size={12} />
-            ) : (
-              <ExternalLinkIcon size={12} />
+            <span className="text-xs text-muted">
+              / {formatPeriodFriendly(plan.period)}
+            </span>
+            {trialDays > 0 && (
+              <span className="text-xs text-muted ml-2">
+                · {trialDays}d free trial
+              </span>
             )}
-            {copiedLink ? "Link copied" : "Copy checkout link"}
-          </span>
-        </button>
-        <button
-          onClick={handleCopyId}
-          className="w-full flex items-center justify-between text-xs text-muted hover:text-foreground transition-colors px-3"
-        >
-          <span>ID</span>
-          <span className="flex items-center gap-1.5 font-mono">
-            {encodedId}
+          </div>
+        </div>
+
+        {/* Right: actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleCopyLink}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent-subtle text-accent hover:bg-accent hover:text-white transition-colors text-xs font-medium whitespace-nowrap"
+          >
+            {copiedLink ? (
+              <>
+                <CheckIcon size={12} />
+                Link copied
+              </>
+            ) : (
+              <>
+                <ExternalLinkIcon size={12} />
+                Copy checkout link
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleCopyId}
+            className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs text-muted hover:text-foreground hover:bg-surface transition-colors font-mono whitespace-nowrap"
+            title="Plan ID"
+          >
             {copiedId ? (
               <CheckIcon size={12} className="text-success" />
             ) : (
               <CopyIcon size={12} />
             )}
-          </span>
-        </button>
+            {encodedId}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -196,15 +194,6 @@ function formatPeriodFriendly(seconds: number): string {
   if (seconds === 7776000) return "quarter";
   if (seconds === 31536000) return "year";
   return `${seconds}s`;
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between items-center">
-      <span className="text-muted">{label}</span>
-      <span className="text-foreground font-medium">{value}</span>
-    </div>
-  );
 }
 
 function CreatePlanForm({
@@ -223,10 +212,7 @@ function CreatePlanForm({
   const [token, setToken] = useState(TUSDC_SAC);
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState("2592000");
-  const [trialPeriods, setTrialPeriods] = useState("0");
-  const [maxPeriods, setMaxPeriods] = useState("0");
-  const [gracePeriod, setGracePeriod] = useState("86400");
-  const [priceCeiling, setPriceCeiling] = useState("");
+  const [trialDays, setTrialDays] = useState("0");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,21 +224,32 @@ function CreatePlanForm({
     setIsSubmitting(true);
     try {
       const amt = parseFloat(amount);
-      const ceiling = priceCeiling ? parseFloat(priceCeiling) : amt * 2;
+      const periodSeconds = parseInt(period);
       const planName = name.trim();
+      // Convert trial DAYS into trial PERIODS: round to whole periods.
+      // For sub-day plans (testing), 0 days = 0 periods.
+      const trialDaysNum = parseInt(trialDays) || 0;
+      const trialPeriods =
+        periodSeconds > 0
+          ? Math.round((trialDaysNum * 86_400) / periodSeconds)
+          : 0;
 
-      // Truly single signature: contract takes name + project_slot directly.
-      // No more second ManageData op, no more "fire-and-forget" wallet popup.
       setSubmitStatus("creating");
       await createPlan({
         merchant: merchantAddress,
         token,
         amountUsdc: amt,
-        period: parseInt(period),
-        trialPeriods: parseInt(trialPeriods),
-        maxPeriods: parseInt(maxPeriods),
-        gracePeriod: parseInt(gracePeriod),
-        priceCeilingUsdc: ceiling,
+        period: periodSeconds,
+        trialPeriods,
+        // Locked-down defaults so users don't have to think:
+        //   - max_periods = 0  →  subscription has no hard cap
+        //   - grace_period = 1 day  →  subscriber has 24h to fix a failed charge
+        //   - priceCeiling = amount  →  contract can't ever charge more than the
+        //     declared amount; if the merchant raises prices later it would
+        //     require subscribers to re-consent (cleanest 'no surprise debits' model)
+        maxPeriods: 0,
+        gracePeriod: 86_400,
+        priceCeilingUsdc: amt,
         name: planName,
         projectId,
       });
@@ -310,7 +307,7 @@ function CreatePlanForm({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Amount (USDC)" required>
+        <Field label="Price (USDC)" required>
           <Input
             type="number"
             step="0.01"
@@ -321,62 +318,32 @@ function CreatePlanForm({
           />
         </Field>
 
-        <Field label="Period" required>
+        <Field label="Bills every" required>
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
             className="w-full h-9 rounded-lg border border-border bg-elevated px-3 text-sm focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
           >
-            <option value="60">Every minute (testing)</option>
-            <option value="3600">Hourly</option>
-            <option value="86400">Daily</option>
-            <option value="604800">Weekly</option>
-            <option value="2592000">Monthly</option>
-            <option value="7776000">Quarterly</option>
-            <option value="31536000">Yearly</option>
+            <option value="60">Minute (testing only)</option>
+            <option value="3600">Hour</option>
+            <option value="86400">Day</option>
+            <option value="604800">Week</option>
+            <option value="2592000">Month</option>
+            <option value="7776000">Quarter</option>
+            <option value="31536000">Year</option>
           </select>
         </Field>
 
-        <Field label="Trial periods" hint="Free periods at start">
-          <Input
-            type="number"
-            placeholder="0"
-            value={trialPeriods}
-            onChange={(e) => setTrialPeriods(e.target.value)}
-          />
-        </Field>
-
-        <Field label="Max periods" hint="0 = unlimited">
-          <Input
-            type="number"
-            placeholder="0"
-            value={maxPeriods}
-            onChange={(e) => setMaxPeriods(e.target.value)}
-          />
-        </Field>
-
         <Field
-          label="Grace (seconds)"
-          hint="Time before pause on failed charge"
+          label="Free trial (days)"
+          hint="Optional. 0 = charge on signup."
         >
           <Input
             type="number"
-            placeholder="86400"
-            value={gracePeriod}
-            onChange={(e) => setGracePeriod(e.target.value)}
-          />
-        </Field>
-
-        <Field
-          label="Price ceiling (USDC)"
-          hint="Max future price (defaults to 2× amount)"
-        >
-          <Input
-            type="number"
-            step="0.01"
-            placeholder={amount ? (parseFloat(amount) * 2).toFixed(2) : ""}
-            value={priceCeiling}
-            onChange={(e) => setPriceCeiling(e.target.value)}
+            placeholder="0"
+            min="0"
+            value={trialDays}
+            onChange={(e) => setTrialDays(e.target.value)}
           />
         </Field>
       </div>

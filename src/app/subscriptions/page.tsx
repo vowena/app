@@ -10,6 +10,8 @@ import { TopNav } from "@/components/top-nav";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CalendarIcon, ArrowRightIcon } from "@/components/ui/icons";
+import { cancelSubscription } from "@/lib/contract";
+import { formatChainError } from "@/lib/chain-errors";
 
 export default function SubscriptionsPage() {
   return (
@@ -21,8 +23,20 @@ export default function SubscriptionsPage() {
 
 function SubscriptionsView() {
   const { address } = useWallet();
-  const { data: subscriptions, isLoading } = useSubscriptions(address);
+  const { data: subscriptions, isLoading, refetch } =
+    useSubscriptions(address);
   const [selectedSubId, setSelectedSubId] = useState<number | null>(null);
+
+  const handleCancel = async () => {
+    if (!address || selectedSubId == null) return;
+    try {
+      await cancelSubscription({ caller: address, subId: selectedSubId });
+      setSelectedSubId(null);
+      await refetch();
+    } catch (err) {
+      throw new Error(formatChainError(err, "Couldn't cancel subscription"));
+    }
+  };
 
   const selectedSub =
     selectedSubId && subscriptions
@@ -89,6 +103,7 @@ function SubscriptionsView() {
         subscription={selectedSub || null}
         isOpen={selectedSubId !== null}
         onClose={() => setSelectedSubId(null)}
+        onCancel={handleCancel}
       />
     </>
   );
