@@ -25,6 +25,7 @@ export async function createPlan(params: {
   maxPeriods?: number;
   gracePeriod?: number;
   priceCeilingUsdc: number;
+  name: string;
 }) {
   const built = await client.buildCreatePlan({
     merchant: params.merchant,
@@ -35,6 +36,7 @@ export async function createPlan(params: {
     maxPeriods: params.maxPeriods ?? 0,
     gracePeriod: params.gracePeriod ?? 86400,
     priceCeiling: BigInt(Math.floor(params.priceCeilingUsdc * 1e7)),
+    name: params.name,
   });
 
   return signAndSubmit({ xdr: built, sourceAddress: params.merchant });

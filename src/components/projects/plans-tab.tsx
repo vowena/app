@@ -242,7 +242,10 @@ function CreatePlanForm({
       const ceiling = priceCeiling ? parseFloat(priceCeiling) : amt * 2;
       const planName = name.trim();
 
-      // Step 1: create plan on the Vowena contract
+      // Single signature flow. The contract's create_plan takes the name
+      // directly, so we don't need a second ManageData tx for naming. The
+      // project-tag op is done lazily and silently in the background — the
+      // user is already done by then.
       setSubmitStatus("creating");
       const result = await createPlan({
         merchant: merchantAddress,
@@ -253,22 +256,22 @@ function CreatePlanForm({
         maxPeriods: parseInt(maxPeriods),
         gracePeriod: parseInt(gracePeriod),
         priceCeilingUsdc: ceiling,
+        name: planName,
       });
-
-      // Step 2: extract plan ID and tag + name it (single Stellar tx)
-      const planId = extractPlanId(result);
-      if (planId != null) {
-        setSubmitStatus("tagging");
-        try {
-          await tagAndNamePlan(planId, projectSlot, planName);
-        } catch (tagErr) {
-          console.error("Plan created but tagging failed:", tagErr);
-          // Non-fatal — plan exists on chain, just not associated/named here
-        }
-      }
 
       await refetch();
       onSuccess();
+
+      // Best-effort, fire-and-forget: tag plan_id to this project for
+      // multi-project filtering. Doesn't block the UX. Triggers a 2nd
+      // signature only if the project has 2+ projects existing AND the
+      // user accepts; otherwise the plan still works via merchant lookup.
+      const planId = extractPlanId(result);
+      if (planId != null) {
+        tagAndNamePlan(planId, projectSlot, planName).catch((err) => {
+          console.warn("Background project-tagging failed (non-fatal):", err);
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create plan");
     } finally {

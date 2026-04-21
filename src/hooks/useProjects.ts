@@ -171,8 +171,16 @@ export function useProjects() {
 }
 
 /**
- * Fetch all plans for a project from the Vowena contract, augmenting each
- * with its display name read from the project's account data.
+ * Fetch all plans for a project from the Vowena contract.
+ *
+ * The set of plan IDs comes from two sources, in priority order:
+ *   1. planIds explicitly tagged to this project in account data
+ *   2. all plans owned by the merchant (covers plans created in single-sig
+ *      mode where the project tag write was skipped or hasn't propagated)
+ *
+ * For displayed names, the new contract carries `plan.name` directly — that
+ * always wins. The legacy account-data planNames map is only used as a
+ * fallback for plans created with the old contract (which had no name field).
  */
 export async function getProjectPlansWithData(
   merchantAddress: string,
@@ -180,14 +188,24 @@ export async function getProjectPlansWithData(
   planNames: Record<number, string> = {},
 ): Promise<NamedPlan[]> {
   try {
-    if (planIds.length === 0) return [];
+    const { getMerchantPlans } = await import("@/lib/chain");
+    const allMerchantIds = await getMerchantPlans(merchantAddress);
+
+    // Union of explicitly-tagged plan IDs and all-merchant plan IDs
+    const ids = Array.from(new Set([...planIds, ...allMerchantIds]));
+    if (ids.length === 0) return [];
 
     const plans = await Promise.all(
-      planIds.map((id) => getPlan(id, merchantAddress).catch(() => null)),
+      ids.map((id) => getPlan(id, merchantAddress).catch(() => null)),
     );
     return plans
       .filter((p): p is NonNullable<typeof p> => p !== null)
-      .map((p) => ({ ...p, name: planNames[p.id] }));
+      .map((p) => ({
+        ...p,
+        // Prefer the on-chain name from the contract; fall back to legacy
+        // account-data name; finally degrade to whatever the SDK returned.
+        name: p.name && p.name.length > 0 ? p.name : planNames[p.id],
+      }));
   } catch (error) {
     console.error("Failed to fetch project plans:", error);
     return [];
